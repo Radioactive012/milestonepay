@@ -12,6 +12,14 @@ a database table or an API route needs both people.
 
 Newest at the top. One line per push: who, what changed, anything the other must do.
 
+- Vinayak: added `message`, `suggestion`, `change_order` tables, `contract.hourly_rate`
+  (default 40, `PATCH /api/contracts/{id}`), `milestone.revisions_used`,
+  `approve_change_order()` and `record_revision()`. Avirup: your routes can call these
+  (see "Money functions to call" in CLAUDE.md). Delete `backend/milestonepay.db` after
+  pulling, because the tables changed. Also: `hours.quantize(Decimal("0.25"))` rounds to
+  2 decimals, not to quarter hours; use `app.billing.round_to_quarter_hour`.
+- Vinayak: added GitHub comment rules to `CLAUDE.md`.
+
 - Vinayak: added `CLAUDE.md` (team rules both our Claudes read automatically). Please `git pull`.
 - Vinayak: backend foundation is on `main`: PayPal invoices, contract reading with
   Claude, deposit, paid webhook. Needs real keys to test.
