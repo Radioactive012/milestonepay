@@ -163,3 +163,18 @@ def test_network_failure_becomes_paypal_error():
     with pytest.raises(PayPalError) as error:
         make_client(handler).request("GET", "/v2/invoicing/invoices/INV2-1")
     assert error.value.status_code == 503
+
+
+@pytest.mark.parametrize(
+    "error,expected",
+    [
+        (PayPalError(401, "PayPal sandbox keys are missing. Add them to .env."), "PayPal sandbox keys are missing. Add them to .env (PayPal 401)."),
+        (PayPalError(401, '{"error":"invalid_client","error_description":"Client Authentication failed"}'), "Client Authentication failed (PayPal 401)."),
+        (PayPalError(422, '{"name":"UNPROCESSABLE_ENTITY","message":"The requested action could not be performed."}'), "The requested action could not be performed (PayPal 422)."),
+        (PayPalError(500, "{not json"), "{not json (PayPal 500)."),
+    ],
+)
+def test_paypal_reason_is_short_and_readable(error, expected):
+    from app.paypal.client import paypal_reason
+
+    assert paypal_reason(error) == expected

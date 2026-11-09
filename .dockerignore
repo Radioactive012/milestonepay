@@ -1,0 +1,15 @@
+# Keep secrets, local data and bulky folders out of the container
+.env
+.env.*
+*.local.md
+.git
+.claude
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.db
+**/*.sqlite
+frontend/dist
+backend/tests
+backend/evals
+**/.pytest_cache

@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from app.ai.contract import get_contract_ai
+from app.ai.llm import DailyAILimit, get_ai_limit
 from app.ai.schemas import ContractAnalysis
 from app.db import get_session, init_db, make_engine
 from app.main import app
@@ -164,5 +165,6 @@ def api(engine, fake_paypal, fake_ai):
     app.dependency_overrides[get_session] = override_session
     app.dependency_overrides[get_paypal_client] = lambda: fake_paypal
     app.dependency_overrides[get_contract_ai] = lambda: fake_ai
+    app.dependency_overrides[get_ai_limit] = lambda: DailyAILimit(engine, 150)
     yield TestClient(app)
     app.dependency_overrides.clear()

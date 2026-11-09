@@ -14,6 +14,7 @@ from app.api.messages import router as messages_router
 from app.api.portal import router as portal_router
 from app.config import get_settings
 from app.db import engine, init_db
+from app.frontend import mount_frontend
 from app.jobs import run_daily_jobs
 from app.milestones import InvalidTransition
 from app.paypal.client import PayPalError, get_paypal_client
@@ -72,3 +73,7 @@ def paypal_error(request: Request, error: PayPalError):
 @app.get("/health")
 def health():
     return {"status": "ok", "paypal_environment": get_settings().paypal_environment}
+
+
+# last, so the API routes above always win
+mount_frontend(app)

@@ -175,3 +175,40 @@ def test_reader_refuses_other_file_types_without_calling_the_ai():
     with pytest.raises(AIError) as error:
         reader.analyse(text=None, file_bytes=b"abc", media_type="application/zip")
     assert "PDF" in str(error.value)
+
+
+def test_daily_ai_limit_counts_calls_and_refuses_past_the_cap(engine):
+    from datetime import date
+
+    from app.ai.llm import DailyAILimit
+
+    limit = DailyAILimit(engine, 2)
+    day = date(2026, 11, 10)
+    limit.take_one(day)
+    limit.take_one(day)
+    assert limit.used_today(day) == 2
+    with pytest.raises(AIError) as error:
+        limit.take_one(day)
+    assert "AI_DAILY_LIMIT" in str(error.value)
+    limit.take_one(date(2026, 11, 11))
+    assert limit.used_today(date(2026, 11, 11)) == 1
+
+
+def test_limit_is_checked_before_every_ai_call_including_the_retry(engine):
+    from app.ai.llm import DailyAILimit
+
+    limit = DailyAILimit(engine, 1)
+    queue = [reply("not json"), reply(VALID)]
+    llm = OpenRouterLLM(settings(), transport=httpx.MockTransport(lambda r: queue.pop(0)), limit=limit)
+    with pytest.raises(AIError) as error:
+        llm.ask_json(system="s", content="c", output=ContractAnalysis)
+    assert "limit" in str(error.value)
+    assert limit.used_today() == 1
+
+
+def test_zero_limit_turns_the_ai_off(engine):
+    from app.ai.llm import DailyAILimit
+
+    llm = OpenRouterLLM(settings(), transport=httpx.MockTransport(lambda r: reply(VALID)), limit=DailyAILimit(engine, 0))
+    with pytest.raises(AIError):
+        llm.ask_json(system="s", content="c", output=ContractAnalysis)

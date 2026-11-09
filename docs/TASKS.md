@@ -12,6 +12,23 @@ a database table or an API route needs both people.
 
 Newest at the top. One line per push: who, what changed, anything the other must do.
 
+- Vinayak: **Person A's part is complete** (code side). New:
+  - Client page at `/portal/<link>` (`frontend/src/pages/portal/PortalPage.tsx`) and a
+    "Billing, files and client page" panel on the project page (client link with copy,
+    file upload, Send invoice now, Check payment).
+  - Yellow demo bar (`frontend/src/pages/demo/DemoBar.tsx`): load demo project (saved AI
+    reading, no credit), +7 days, back to today, run daily jobs, reset demo.
+  - One website: the backend serves `frontend/dist` (`backend/app/frontend.py`).
+  - Daily cap on real AI calls, `AI_DAILY_LIMIT` (default 150), enforced inside `app.ai.llm`.
+  - `Dockerfile`, `.dockerignore`, `render.yaml` for Render. New README with a judge walkthrough.
+  - PayPal errors now say why (for example "keys are missing"), not just the code.
+  - **Avirup, heads-up on your files** (small additions, please check):
+    `frontend/src/main.tsx` (shows the client page for `/portal/...` links),
+    `frontend/src/App.tsx` (demo bar under the nav; opens a just-loaded demo draft),
+    `frontend/src/pages/ProjectPage.tsx` (the billing panel under the milestones grid),
+    `frontend/src/pages/NewProject.tsx` (new optional `draftId` prop to open a saved draft).
+  - After pulling: delete `backend/milestonepay.db` (new columns), `pip install -r requirements.txt`.
+
 - Avirup: added `backend/app/api/messages.py` (message analysis and the approval inbox):
   `POST /api/messages`, `GET /api/messages`, `GET /api/suggestions`, and `approve` and `dismiss`
   for a suggestion. They call your `invoice_milestone`, `approve_change_order` and
@@ -95,10 +112,11 @@ extra only come back if the core works by Wednesday night. AG Grid and Render st
 - Clear errors when AI or PayPal keys are missing
 - AI runs on OpenRouter (DeepSeek V4.1 Flash 1017) through one shared connection, `app.ai.llm`
 - Daily jobs: dated invoices, overdue marking, PayPal reminders; demo clock and run-jobs routes
-- 95 passing tests, all with a pretend PayPal and a pretend AI
+- 131 passing tests, all with a pretend PayPal and a pretend AI
+- Client page, billing panel, demo bar, one-website serving, AI daily cap, Render files, README
 
 ## Not done yet
 
 - Not yet run against real PayPal sandbox or the real AI (needs keys in `.env`)
-- Message and suggestion routes (Avirup), frontend screens (Avirup's PR #1, portal page),
-  deploy to Render + Neon
+- Deploy to Render + Neon (needs Vinayak's accounts), first real PayPal and AI run (needs keys),
+  demo video and Devpost text

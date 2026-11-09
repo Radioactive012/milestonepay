@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     paypal_webhook_id: str = ""
     openrouter_api_key: str = ""
     ai_model: str = "deepseek/deepseek-v4.1-flash-1017"
+    # most real AI calls allowed per day, across everyone; 0 turns the AI off
+    ai_daily_limit: int = 150
+    # the sandbox Personal account that pays the demo project's invoices
+    demo_client_email: str = "buyer@example.com"
     database_url: str = f"sqlite:///{LOCAL_DB}"
     # demo controls (clock and run-jobs routes); turn off for anything but a demo
     demo_mode: bool = True

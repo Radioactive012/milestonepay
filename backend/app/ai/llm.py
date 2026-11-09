@@ -3,13 +3,17 @@
 Every answer comes back as JSON that must match a Pydantic model, so code can check it before
 anything is saved. The AI never gets tools and never touches money.
 """
+from datetime import date
 from functools import lru_cache
 from typing import TypeVar
 
 import httpx
 from pydantic import BaseModel, ValidationError
+from sqlmodel import Session
 
 from app.config import Settings, get_settings
+from app.db import engine
+from app.models import AppState
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 # keywords the strict schema format doesn't accept; Pydantic still enforces them afterwards
@@ -45,11 +49,51 @@ def strict_schema(model: type[BaseModel]) -> dict:
     return clean(model.model_json_schema())
 
 
+class DailyAILimit:
+    """Counts real AI calls per calendar day in the database and refuses once the cap is reached.
+
+    Uses the real date, so moving the demo clock can't reset it.
+    """
+
+    def __init__(self, db_engine, limit: int):
+        self._engine = db_engine
+        self.limit = limit
+
+    def used_today(self, today: date | None = None) -> int:
+        with Session(self._engine) as session:
+            state = session.get(AppState, 1)
+            if state is None or state.ai_calls_date != (today or date.today()):
+                return 0
+            return state.ai_calls_count
+
+    def take_one(self, today: date | None = None) -> None:
+        today = today or date.today()
+        with Session(self._engine) as session:
+            state = session.get(AppState, 1) or AppState(id=1)
+            if state.ai_calls_date != today:
+                state.ai_calls_date = today
+                state.ai_calls_count = 0
+            if state.ai_calls_count >= self.limit:
+                raise AIError(
+                    f"Today's AI limit ({self.limit} requests) is used up. It protects the team's AI credit. "
+                    "Try again tomorrow, or raise AI_DAILY_LIMIT in .env."
+                )
+            state.ai_calls_count += 1
+            session.add(state)
+            session.commit()
+
+
 class OpenRouterLLM:
-    def __init__(self, settings: Settings, transport: httpx.BaseTransport | None = None):
+    def __init__(
+        self,
+        settings: Settings,
+        transport: httpx.BaseTransport | None = None,
+        limit: DailyAILimit | None = None,
+    ):
         self._key = settings.openrouter_api_key
         self._model = settings.ai_model
         self._http = httpx.Client(timeout=120, transport=transport)
+        self._limit = limit
 
     def _post(self, body: dict) -> dict:
         try:
@@ -89,6 +133,8 @@ class OpenRouterLLM:
             "provider": {"require_parameters": True},
         }
         for _ in range(2):
+            if self._limit:
+                self._limit.take_one()
             choice = self._post(body)["choices"][0]
             if choice.get("finish_reason") == "length":
                 raise AIError("The AI couldn't finish its answer. Try a shorter document.")
@@ -102,5 +148,10 @@ class OpenRouterLLM:
 
 
 @lru_cache
+def get_ai_limit() -> DailyAILimit:
+    return DailyAILimit(engine, get_settings().ai_daily_limit)
+
+
+@lru_cache
 def get_llm() -> OpenRouterLLM:
-    return OpenRouterLLM(get_settings())
+    return OpenRouterLLM(get_settings(), limit=get_ai_limit())

@@ -1,3 +1,4 @@
+import json
 import time
 from functools import lru_cache
 
@@ -11,6 +12,18 @@ class PayPalError(Exception):
         super().__init__(f"PayPal returned {status_code}: {body}")
         self.status_code = status_code
         self.body = body
+
+
+def paypal_reason(error: PayPalError) -> str:
+    """A short, readable reason for a PayPal failure, for messages shown to people."""
+    body = error.body.strip()
+    if body.startswith("{"):
+        try:
+            data = json.loads(body)
+            body = data.get("message") or data.get("error_description") or data.get("name") or body
+        except ValueError:
+            pass
+    return f"{body[:200].rstrip('.')} (PayPal {error.status_code})."
 
 
 class PayPalClient:

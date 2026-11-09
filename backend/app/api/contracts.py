@@ -11,13 +11,14 @@ from sqlmodel import Session, select
 from app import audit
 from app.ai.contract import ContractAI, get_contract_ai
 from app.ai.llm import AIError
+from app.ai.schemas import ContractAnalysis
 from app.ai.guardrails import check_analysis
 from app.api.portal import file_list
 from app.billing import invoice_milestone, sync_from_paypal
 from app.db import get_session
 from app.milestones import apply_deposit, move
 from app.models import DEFAULT_HOURLY_RATE, AuditEntry, ChangeOrder, Contract, Invoice, Milestone, Reminder
-from app.paypal.client import PayPalClient, PayPalError, get_paypal_client
+from app.paypal.client import PayPalClient, PayPalError, get_paypal_client, paypal_reason
 
 router = APIRouter(prefix="/api")
 
@@ -178,9 +179,23 @@ def create_contract(
     except AIError as error:
         raise HTTPException(status_code=502, detail=str(error))
 
-    source = text or analysis.transcription
-    checked = check_analysis(analysis, source)
+    contract = save_analysed_contract(
+        session, analysis, text or analysis.transcription, client_name, client_email, hourly_rate, actor="ai"
+    )
+    return contract_out(session, contract)
 
+
+def save_analysed_contract(
+    session: Session,
+    analysis: ContractAnalysis,
+    source: str,
+    client_name: str | None,
+    client_email: str,
+    hourly_rate: Decimal | None,
+    actor: str,
+) -> Contract:
+    """Run the code checks on an AI reading of a contract and save it as a draft."""
+    checked = check_analysis(analysis, source)
     contract = Contract(
         client_name=(client_name or checked.client_name or "Client").strip(),
         client_email=client_email.strip(),
@@ -202,7 +217,7 @@ def create_contract(
     audit.record(
         session,
         contract.id,
-        "ai",
+        actor,
         "contract_analysed",
         milestones=len(checked.milestones),
         risks=len(checked.risks),
@@ -210,7 +225,7 @@ def create_contract(
     )
     session.commit()
     session.refresh(contract)
-    return contract_out(session, contract)
+    return contract
 
 
 @router.get("/contracts/{contract_id}")
@@ -311,7 +326,7 @@ def approve_contract(
         except PayPalError as error:
             raise HTTPException(
                 status_code=502,
-                detail=f"Milestones approved, but PayPal didn't accept the deposit invoice. Use Send invoice to retry. ({error.status_code})",
+                detail=f"Milestones approved, but PayPal didn't accept the deposit invoice: {paypal_reason(error)} Use Send invoice now to retry.",
             )
     return contract_out(session, contract)
 
@@ -335,7 +350,7 @@ def send_milestone_invoice(
     try:
         invoice_milestone(session, paypal, milestone, "user")
     except PayPalError as error:
-        raise HTTPException(status_code=502, detail=f"PayPal didn't accept the invoice ({error.status_code}). Try again.")
+        raise HTTPException(status_code=502, detail=f"PayPal didn't accept the invoice: {paypal_reason(error)} Try again.")
     return contract_out(session, contract)
 
 

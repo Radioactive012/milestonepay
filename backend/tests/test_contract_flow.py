@@ -113,7 +113,8 @@ def test_deposit_invoice_failure_can_be_retried(api, fake_paypal):
     fake_paypal.fail_create = True
     response = api.post(f"/api/contracts/{contract['id']}/approve", json={"deposit_pct": 25})
     assert response.status_code == 502
-    assert "Send invoice" in response.json()["detail"]
+    assert "Send invoice now" in response.json()["detail"]
+    assert "sandbox is down" in response.json()["detail"]
 
     body = api.get(f"/api/contracts/{contract['id']}").json()
     deposit = body["milestones"][0]
