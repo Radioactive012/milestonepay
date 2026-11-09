@@ -4,6 +4,7 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
+LOCAL_DB = Path(__file__).resolve().parents[1] / "milestonepay.db"
 SANDBOX_URL = "https://api-m.sandbox.paypal.com"
 
 
@@ -15,7 +16,8 @@ class Settings(BaseSettings):
     paypal_environment: str = "SANDBOX"
     paypal_webhook_id: str = ""
     anthropic_api_key: str = ""
-    database_url: str = ""
+    anthropic_model: str = "claude-opus-5-5"
+    database_url: str = f"sqlite:///{LOCAL_DB}"
 
     @property
     def paypal_base_url(self) -> str:

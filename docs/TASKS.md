@@ -28,3 +28,19 @@ extra only come back if the core works by Wednesday night. AG Grid and Render st
 - FastAPI backend skeleton, PayPal client (token cache, invoices, reminders,
   webhook signature check), webhook route, 14 passing tests
 - `backend/scripts/paypal_spike.py` to prove the PayPal flow with real sandbox keys
+- Database tables (contracts, milestones, invoices, webhook events, audit log),
+  SQLite locally and Postgres when `DATABASE_URL` is set
+- Milestone status rules: only allowed changes, each one written to the audit log
+- AI contract reading with Claude (text, PDF or photo): milestones, risky clauses,
+  deposit suggestion. Code checks drop clauses not quoted word for word, warn when
+  amounts don't add up, and reject zero amounts
+- Routes: create contract, edit draft milestone, approve with deposit (deposit
+  invoice goes out through PayPal), send milestone invoice, refresh from PayPal
+- PayPal "paid" webhook marks the invoice and milestone paid, stored so repeats are ignored
+- 36 passing tests, all with a pretend PayPal and a pretend AI
+
+## Not done yet
+
+- Not yet run against real PayPal sandbox or the real Claude API (needs keys)
+- Client messages and scope-creep detection, client portal, file unlock,
+  reminders, frontend, deploy
