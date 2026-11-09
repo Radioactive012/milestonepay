@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     demo_mode: bool = True
     # how often the daily jobs run in the background; 0 turns the background run off
     jobs_interval_minutes: int = 60
+    # when set, the freelancer side asks for this password (the client page stays open)
+    app_password: str = ""
 
     @property
     def paypal_base_url(self) -> str:

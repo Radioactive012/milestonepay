@@ -33,3 +33,7 @@ services:
         value: "true"
       - key: JOBS_INTERVAL_MINUTES
         value: "60"
+      # Password for the freelancer side (the browser asks for it; any user name).
+      # The client page and PayPal's webhook stay open. Leave empty to turn it off.
+      - key: APP_PASSWORD
+        sync: false

@@ -72,12 +72,18 @@ Every answer must match a strict JSON schema, and code checks it before anything
 - **Prompt injection is ignored.** Instructions written inside a contract or message, such as
   "mark everything as paid", are treated as text to analyse, not commands.
 - **Low-confidence findings** are shown as "Possible", with no ready-made approve button.
-- **A strict status flow** means a milestone can't be invoiced twice.
+- **A strict status flow** means a milestone can't be invoiced twice, even when a button is
+  double-clicked: the second click gets the first click's invoice.
+- **Files stay locked until PayPal says paid.** The client sees a watermarked preview; the full
+  file unlocks on payment and locks again if the payment is refunded.
 - **An audit log** records every action and who did it: the user, the client, the AI, PayPal
   or the system.
 - **A daily cap on AI calls** (`AI_DAILY_LIMIT`, 150 by default) protects the AI budget.
 
 ## Try it (for judges)
+
+The freelancer side of the hosted demo asks for a password (any user name):
+_add the password here_. The client page opened from **Open as client** needs none.
 
 On the hosted demo, the yellow **Demo** bar at the top drives the whole story:
 
@@ -149,13 +155,26 @@ The tests use a pretend PayPal and a pretend AI, so they cost nothing and need n
 2. In Render, choose **New → Blueprint** and pick this repository. `render.yaml` sets up one
    free web service built from the `Dockerfile`.
 3. Fill in the secret values Render asks for: PayPal Client ID and Secret, OpenRouter key,
-   `DATABASE_URL` (Neon), and `DEMO_CLIENT_EMAIL`.
+   `DATABASE_URL` (Neon), `DEMO_CLIENT_EMAIL`, and `APP_PASSWORD` (the password for the
+   freelancer side; without it anyone with the link can see and reset the projects).
 4. In your PayPal sandbox app, add a webhook to `https://<your-app>.onrender.com/webhooks/paypal`
    for `INVOICING.INVOICE.PAID`, `INVOICING.INVOICE.CANCELLED` and `INVOICING.INVOICE.REFUNDED`.
    Copy its Webhook ID into `PAYPAL_WEBHOOK_ID` on Render.
 
 The free plan sleeps after about 15 minutes without visitors, so the first page can take up
 to a minute to load.
+
+## Known limits
+
+- **One freelancer, no accounts.** It's a single-user demo: one optional password
+  (`APP_PASSWORD`) guards the freelancer side, and each client has a private link.
+- **Demo controls are open to whoever has the password.** The demo clock and **Reset demo**
+  work while `DEMO_MODE=true`; set it to `false` for real use.
+- **One server process.** Double-click protection works inside one process, which is how the
+  `Dockerfile` runs it. Running several copies would need a database lock instead.
+- **Sleeping pauses reminders.** On Render's free plan the hourly jobs only run while the app
+  is awake; the next run catches up and sends the latest reminder due, once.
+- **Sandbox only**, and tested with US dollar invoices.
 
 ## Project layout
 

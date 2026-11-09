@@ -13,6 +13,8 @@ from app.paypal.client import PayPalClient, get_paypal_client
 
 router = APIRouter()
 log = logging.getLogger("milestonepay.webhooks")
+# real PayPal events are a few kB; refuse anything huge before asking PayPal to check it
+MAX_EVENT_BYTES = 1_000_000
 
 
 def handle_event(session: Session, event: dict) -> str:
@@ -53,8 +55,11 @@ async def receive_paypal_event(
     client: PayPalClient = Depends(get_paypal_client),
     session: Session = Depends(get_session),
 ):
+    body = await request.body()
+    if len(body) > MAX_EVENT_BYTES:
+        raise HTTPException(status_code=413, detail="Event is too large")
     try:
-        event = json.loads(await request.body())
+        event = json.loads(body)
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Body is not valid JSON")
 

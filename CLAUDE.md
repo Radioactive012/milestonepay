@@ -24,7 +24,7 @@ avoid jargon.
 | `backend/app/paypal/`, `backend/app/billing.py`, `backend/app/milestones.py` | A |
 | `backend/app/api/portal.py`, `backend/app/files.py` | A |
 | `backend/app/jobs.py`, `backend/app/clock.py`, `backend/app/api/demo.py`, `backend/app/demo_data.py` | A |
-| `backend/scripts/`, `backend/app/frontend.py`, `Dockerfile`, `render.yaml` | A |
+| `backend/scripts/`, `backend/app/frontend.py`, `backend/app/access.py`, `Dockerfile`, `render.yaml` | A |
 | Client portal and billing panel (`frontend/src/pages/portal/`), demo bar (`frontend/src/pages/demo/`) | A |
 | `backend/app/ai/`, `backend/app/api/messages.py`, `backend/evals/`, `frontend/` (except the portal) | B |
 | `backend/app/models.py`, `backend/app/db.py`, `backend/app/api/`, `requirements.txt`, `CLAUDE.md`, `README.md` | Shared |
@@ -131,6 +131,8 @@ Secrets live in `.env` at the project root (copy `.env.example`). Each person ke
   billing, files and client link panel, and their API calls (`portalApi.ts`)
 - `frontend/src/pages/demo/DemoBar.tsx`: the yellow demo bar
 - `Dockerfile` and `render.yaml`: hosting on Render as one container
+- `backend/app/access.py`: optional `APP_PASSWORD` for the freelancer side (browser login box);
+  the client page, PayPal webhook and `/health` stay open. Tests turn it off in `conftest.py`.
 - `backend/app/ai/llm.py`: the only connection to the AI (OpenRouter, strict JSON answers)
 - `backend/app/ai/`: contract prompt (`contract.py`, PDFs read locally for free), output
   schema, code checks on the AI's answer

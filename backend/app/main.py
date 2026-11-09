@@ -8,6 +8,7 @@ from sqlmodel import Session
 from starlette.concurrency import run_in_threadpool
 
 from app import clock
+from app.access import add_password_check
 from app.api.contracts import router as contracts_router
 from app.api.demo import router as demo_router
 from app.api.messages import router as messages_router
@@ -52,6 +53,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="MilestonePay", lifespan=lifespan)
+add_password_check(app)
 app.include_router(contracts_router)
 app.include_router(portal_router)
 app.include_router(messages_router)

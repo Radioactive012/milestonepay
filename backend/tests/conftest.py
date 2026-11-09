@@ -170,7 +170,12 @@ def fake_ai():
 
 
 @pytest.fixture
-def api(engine, fake_paypal, fake_ai):
+def api(engine, fake_paypal, fake_ai, monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "app_password", "")
+    monkeypatch.setattr(get_settings(), "demo_mode", True)
+
     def override_session():
         with Session(engine) as session:
             yield session

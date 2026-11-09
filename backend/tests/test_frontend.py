@@ -46,3 +46,10 @@ def test_files_outside_the_build_are_never_served(tmp_path):
 
 def test_nothing_is_mounted_without_a_build(tmp_path):
     assert mount_frontend(FastAPI(), tmp_path) is False
+
+
+def test_more_path_tricks_stay_inside_the_build(tmp_path):
+    client = built_site(tmp_path)
+    for path in ("/assets/../../secret.txt", "/assets/..%2f..%2fsecret.txt", "/..%2fsecret.txt",
+                 f"/{tmp_path.parent}/secret.txt", "/%2e%2e%2fsecret.txt"):
+        assert "do not serve" not in client.get(path).text, path
