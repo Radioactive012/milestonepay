@@ -28,7 +28,20 @@ PayPal Invoicing and Webhooks (sandbox), AG Grid, Postgres, hosted on Render.
 ## Setup
 
 Copy `.env.example` to `.env` and add your own PayPal sandbox and Anthropic keys.
-Full run instructions will be added here.
+
+Backend (Python 3.11 or newer):
+
+```bash
+cd backend
+python3.11 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python -m pytest
+.venv/bin/uvicorn app.main:app --reload
+```
+
+The app only talks to the PayPal sandbox and refuses to start against live mode.
+To check your sandbox keys, run `.venv/bin/python -m scripts.paypal_spike <sandbox-buyer-email>`
+from the `backend` folder. Full run instructions for the whole app will be added here.
 
 ## License
 
