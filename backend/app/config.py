@@ -10,7 +10,10 @@ SANDBOX_URL = "https://api-m.sandbox.paypal.com"
 
 class Settings(BaseSettings):
     # env_ignore_empty: an empty line copied from .env.example (DATABASE_URL=) means "use the default"
-    model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore", env_ignore_empty=True)
+    # str_strip_whitespace: a stray space pasted before or after a key is ignored
+    model_config = SettingsConfigDict(
+        env_file=ENV_FILE, extra="ignore", env_ignore_empty=True, str_strip_whitespace=True
+    )
 
     paypal_client_id: str = ""
     paypal_client_secret: str = ""
