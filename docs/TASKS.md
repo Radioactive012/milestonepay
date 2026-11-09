@@ -12,6 +12,14 @@ a database table or an API route needs both people.
 
 Newest at the top. One line per push: who, what changed, anything the other must do.
 
+- Vinayak: **the AI now runs on OpenRouter with DeepSeek V4.1 Flash 1017**, not Anthropic.
+  The `anthropic` package is gone. Every AI call goes through `app.ai.llm`:
+  `get_llm().ask_json(system=..., content=..., output=YourPydanticModel)` returns a checked
+  answer or raises `AIError` with a readable message. Settings are `OPENROUTER_API_KEY` and
+  `AI_MODEL` (the old `ANTHROPIC_*` settings no longer exist). PDFs are read locally for free.
+  Avirup: please switch `messages.py` to `ask_json` and catch `AIError` before merging PR #1,
+  then `pip install -r requirements.txt`. Read "Saving AI credit" in `CLAUDE.md`: we have about $2.
+
 - Vinayak: reminders and demo clock are on main. Daily jobs (`backend/app/jobs.py`) send
   dated milestones' invoices 7 days early, mark late invoices overdue, and send PayPal
   reminders at -3, 0, +3, +7 and +14 days (one per stage; a jump sends only the latest).
@@ -76,12 +84,13 @@ extra only come back if the core works by Wednesday night. AG Grid and Render st
   their own milestone; revision counting
 - Client portal backend: private link per contract, client approval, file upload,
   watermarked previews, downloads locked until the PayPal invoice is paid
-- Clear errors when Anthropic or PayPal keys are missing
+- Clear errors when AI or PayPal keys are missing
+- AI runs on OpenRouter (DeepSeek V4.1 Flash 1017) through one shared connection, `app.ai.llm`
 - Daily jobs: dated invoices, overdue marking, PayPal reminders; demo clock and run-jobs routes
-- 82 passing tests, all with a pretend PayPal and a pretend AI
+- 95 passing tests, all with a pretend PayPal and a pretend AI
 
 ## Not done yet
 
-- Not yet run against real PayPal sandbox or the real Claude API (needs keys in `.env`)
+- Not yet run against real PayPal sandbox or the real AI (needs keys in `.env`)
 - Message and suggestion routes (Avirup), frontend screens (Avirup's PR #1, portal page),
   deploy to Render + Neon

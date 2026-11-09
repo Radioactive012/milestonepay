@@ -9,7 +9,8 @@ from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
 from app import audit
-from app.ai.contract import ContractAI, ContractAIError, get_contract_ai
+from app.ai.contract import ContractAI, get_contract_ai
+from app.ai.llm import AIError
 from app.ai.guardrails import check_analysis
 from app.api.portal import file_list
 from app.billing import invoice_milestone, sync_from_paypal
@@ -174,7 +175,7 @@ def create_contract(
 
     try:
         analysis = ai.analyse(text=text, file_bytes=file_bytes, media_type=media_type)
-    except ContractAIError as error:
+    except AIError as error:
         raise HTTPException(status_code=502, detail=str(error))
 
     source = text or analysis.transcription

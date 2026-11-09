@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     paypal_client_secret: str = ""
     paypal_environment: str = "SANDBOX"
     paypal_webhook_id: str = ""
-    anthropic_api_key: str = ""
-    anthropic_model: str = "claude-opus-5-5"
+    openrouter_api_key: str = ""
+    ai_model: str = "deepseek/deepseek-v4.1-flash-1017"
     database_url: str = f"sqlite:///{LOCAL_DB}"
     # demo controls (clock and run-jobs routes); turn off for anything but a demo
     demo_mode: bool = True
