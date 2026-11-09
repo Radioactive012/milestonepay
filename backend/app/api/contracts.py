@@ -14,7 +14,7 @@ from app.ai.guardrails import check_analysis
 from app.billing import invoice_milestone, sync_from_paypal
 from app.db import get_session
 from app.milestones import apply_deposit, move
-from app.models import AuditEntry, Contract, Invoice, Milestone
+from app.models import DEFAULT_HOURLY_RATE, AuditEntry, ChangeOrder, Contract, Invoice, Milestone
 from app.paypal.client import PayPalClient, PayPalError, get_paypal_client
 
 router = APIRouter(prefix="/api")
@@ -40,6 +40,9 @@ def contract_out(session: Session, contract: Contract) -> dict:
     entries = session.exec(
         select(AuditEntry).where(AuditEntry.contract_id == contract.id).order_by(AuditEntry.id)
     ).all()
+    change_orders = session.exec(
+        select(ChangeOrder).where(ChangeOrder.contract_id == contract.id).order_by(ChangeOrder.id)
+    ).all()
     return {
         "id": contract.id,
         "client_name": contract.client_name,
@@ -48,6 +51,7 @@ def contract_out(session: Session, contract: Contract) -> dict:
         "stated_total": _money(contract.stated_total),
         "milestone_total": _money(sum((m.amount for m in milestones), Decimal("0"))),
         "payment_terms_days": contract.payment_terms_days,
+        "hourly_rate": _money(contract.hourly_rate),
         "status": contract.status,
         "portal_token": contract.portal_token,
         "risks": json.loads(contract.risks_json),
@@ -65,11 +69,23 @@ def contract_out(session: Session, contract: Contract) -> dict:
                 "trigger_description": m.trigger_description,
                 "due_date": m.due_date,
                 "revision_limit": m.revision_limit,
+                "revisions_used": m.revisions_used,
                 "is_deposit": m.is_deposit,
                 "status": m.status,
                 "invoice": _invoice_out(latest_invoice.get(m.id)),
             }
             for m in milestones
+        ],
+        "change_orders": [
+            {
+                "id": c.id,
+                "description": c.description,
+                "estimated_hours": str(c.estimated_hours),
+                "price": _money(c.price),
+                "milestone_id": c.milestone_id,
+                "suggestion_id": c.suggestion_id,
+            }
+            for c in change_orders
         ],
         "audit": [
             {
@@ -125,6 +141,7 @@ def create_contract(
     client_email: str = Form(...),
     client_name: str | None = Form(None),
     text: str | None = Form(None),
+    hourly_rate: Decimal | None = Form(None),
     file: UploadFile | None = File(None),
     session: Session = Depends(get_session),
     ai: ContractAI = Depends(get_contract_ai),
@@ -132,6 +149,8 @@ def create_contract(
     text = (text or "").strip() or None
     if "@" not in client_email:
         raise HTTPException(status_code=422, detail="Enter the client's email address.")
+    if hourly_rate is not None and not 0 < hourly_rate < 100_000:
+        raise HTTPException(status_code=422, detail="Enter an hourly rate above zero.")
     if text is None and file is None:
         raise HTTPException(status_code=422, detail="Paste the contract text or upload a file.")
     if text and len(text) > MAX_TEXT_CHARS:
@@ -158,6 +177,7 @@ def create_contract(
         currency=checked.currency,
         stated_total=checked.stated_total,
         payment_terms_days=checked.payment_terms_days,
+        hourly_rate=(hourly_rate or DEFAULT_HOURLY_RATE).quantize(Decimal("0.01")),
         raw_text=source,
         risks_json=json.dumps([r.model_dump() for r in checked.risks]),
         warnings_json=json.dumps(checked.warnings),
@@ -186,6 +206,20 @@ def create_contract(
 @router.get("/contracts/{contract_id}")
 def read_contract(contract_id: int, session: Session = Depends(get_session)):
     return contract_out(session, _get_or_404(session, Contract, contract_id))
+
+
+class ContractUpdate(BaseModel):
+    hourly_rate: Decimal = Field(gt=0, lt=100_000, max_digits=10, decimal_places=2)
+
+
+@router.patch("/contracts/{contract_id}")
+def update_contract(contract_id: int, changes: ContractUpdate, session: Session = Depends(get_session)):
+    contract = _get_or_404(session, Contract, contract_id)
+    contract.hourly_rate = changes.hourly_rate
+    session.add(contract)
+    audit.record(session, contract.id, "user", "hourly_rate_changed", hourly_rate=changes.hourly_rate)
+    session.commit()
+    return contract_out(session, contract)
 
 
 class MilestoneUpdate(BaseModel):
@@ -280,8 +314,11 @@ def send_milestone_invoice(
 ):
     milestone = _get_or_404(session, Milestone, milestone_id)
     contract = session.get(Contract, milestone.contract_id)
+    # deposits and change orders are invoiced straight from draft, so a failed send can be retried
     ready = milestone.status in ("scheduled", "awaiting_trigger") or (
-        milestone.is_deposit and milestone.status == "draft" and contract.status == "active"
+        milestone.trigger in ("approval", "change_order")
+        and milestone.status == "draft"
+        and contract.status == "active"
     )
     if not ready:
         raise HTTPException(status_code=409, detail=f"This milestone is {milestone.status} and can't be invoiced now.")

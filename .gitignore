@@ -3,8 +3,9 @@
 .env.*
 !.env.example
 
-# Personal Claude notes, never shared
+# Personal notes, never shared
 CLAUDE.local.md
+*.local.md
 
 # Python
 __pycache__/

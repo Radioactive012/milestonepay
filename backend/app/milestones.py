@@ -44,6 +44,24 @@ def move(session: Session, milestone: Milestone, new_status: str, actor: str, **
     )
 
 
+def record_revision(session: Session, milestone: Milestone, actor: str) -> bool:
+    """Count one revision round the freelancer approved. True when it goes past the included rounds."""
+    milestone.revisions_used += 1
+    session.add(milestone)
+    over_limit = milestone.revision_limit is not None and milestone.revisions_used > milestone.revision_limit
+    audit.record(
+        session,
+        milestone.contract_id,
+        actor,
+        "revision_counted",
+        milestone_id=milestone.id,
+        used=milestone.revisions_used,
+        limit=milestone.revision_limit,
+        over_limit=over_limit,
+    )
+    return over_limit
+
+
 def apply_deposit(amounts: list[Decimal], pct: int) -> tuple[Decimal, list[Decimal]]:
     """Split a deposit off the contract total, taking it evenly from every milestone.
 
