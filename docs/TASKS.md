@@ -8,6 +8,14 @@ Code freeze: Thu 12 Nov, 12:00 IST.
 Roles can be swapped. Whoever owns an area decides inside it. Anything that changes
 a database table or an API route needs both people.
 
+## Notes for each other
+
+Newest at the top. One line per push: who, what changed, anything the other must do.
+
+- Vinayak: added `CLAUDE.md` (team rules both our Claudes read automatically). Please `git pull`.
+- Vinayak: backend foundation is on `main`: PayPal invoices, contract reading with
+  Claude, deposit, paid webhook. Needs real keys to test.
+
 ## Compressed schedule (4 days)
 
 | Day | Person A | Person B |
