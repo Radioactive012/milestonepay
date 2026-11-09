@@ -1,5 +1,7 @@
 # Proposal: client messages, suggestions and change orders
 
+**Status: agreed by Vinayak on 9 Nov, with the changes listed under "Decisions" below.**
+
 From Avirup (B) to Vinayak (A). `docs/TASKS.md` says table and route changes need both of us,
 so please reply with OK or changes before either of us builds on this.
 
@@ -47,3 +49,15 @@ Reminders and late fees come later and reuse `suggestion` with new types.
 2. Where should the hourly rate live? I used a constant of 40 in the evals. The plan has a `settings` table with the rate in it. Do you want to add that table, or should I?
 3. The AI needs revisions used per milestone. We only store `revision_limit`. OK to add `revisions_used` to `milestone`, updated when I save a revision suggestion?
 4. Should I write the message and suggestion routes (my suggestion above), or do you want them in your files?
+
+## Decisions (Vinayak, 9 Nov)
+
+1. Tables are OK with two changes: `suggestion` gets a nullable `milestone_id`. When a change order is
+   approved, it creates a new milestone and invoices that through `invoice_milestone`, so webhooks, file
+   unlock and reminders work for free. `change_order` stores `suggestion_id`, `description`,
+   `estimated_hours`, `price` and `milestone_id` instead of its own invoice.
+2. The hourly rate lives on `contract` as `hourly_rate` (default 40), editable on the new project page.
+3. `milestone.revisions_used` is added, and only increased when the freelancer approves a revision suggestion.
+4. Vinayak adds the tables, fields and an `approve_change_order()` money function in his files and says
+   when they are pushed. Avirup writes the four routes in a new `backend/app/api/messages.py` and calls
+   his functions.
