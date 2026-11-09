@@ -12,6 +12,11 @@ a database table or an API route needs both people.
 
 Newest at the top. One line per push: who, what changed, anything the other must do.
 
+- Vinayak: PayPal checks against the docs, before real keys: webhook check sends PayPal the
+  event exactly as received; create-invoice accepts every reply shape; PayPal's 2-reminders-a-day
+  limit gets a plain message; stray spaces in `.env` values are ignored. Confirmed on OpenRouter:
+  our DeepSeek model supports strict JSON answers and image input (~$0.001 per contract).
+
 - Vinayak: **full test pass done** (228 tests, also all passing on real Postgres 16). Bugs fixed:
   - Double clicks made two PayPal invoices / two deposits / two change orders. Now one request
     at a time per item (`billing.one_at_a_time`). A suggestion becomes at most one change order.
