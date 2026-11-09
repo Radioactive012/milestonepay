@@ -22,6 +22,7 @@ avoid jargon.
 | Area | Owner |
 |---|---|
 | `backend/app/paypal/`, `backend/app/billing.py`, `backend/app/milestones.py` | A |
+| `backend/app/api/portal.py`, `backend/app/files.py` | A |
 | `backend/scripts/`, deploy files, client portal screens (`frontend/src/pages/portal/`) | A |
 | `backend/app/ai/`, `backend/app/api/messages.py`, `backend/evals/`, `frontend/` (except the portal) | B |
 | `backend/app/models.py`, `backend/app/db.py`, `backend/app/api/`, `requirements.txt`, `CLAUDE.md`, `README.md` | Shared |
@@ -97,6 +98,9 @@ Secrets live in `.env` at the project root (copy `.env.example`). Each person ke
 - `docs/TASKS.md`: schedule, task split, what's done, and notes for each other
 - `backend/app/main.py`: the FastAPI app
 - `backend/app/api/contracts.py`: contract, milestone and invoice routes
+- `backend/app/api/portal.py`: file upload, and the client portal (private link per
+  contract: view, approve a milestone, watermarked previews, downloads locked until paid)
+- `backend/app/files.py`: file name cleaning and watermarked previews
 - `backend/app/ai/`: Claude prompt, output schema, code checks on the AI's answer
 - `backend/app/billing.py`: creating, sending and syncing PayPal invoices
 - `backend/app/paypal/`: PayPal API client, invoice helpers, webhook route

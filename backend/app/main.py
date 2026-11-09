@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.api.contracts import router as contracts_router
+from app.api.portal import router as portal_router
 from app.config import get_settings
 from app.db import init_db
 from app.milestones import InvalidTransition
@@ -19,6 +20,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="MilestonePay", lifespan=lifespan)
 app.include_router(contracts_router)
+app.include_router(portal_router)
 app.include_router(webhook_router)
 
 

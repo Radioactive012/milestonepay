@@ -2,6 +2,7 @@ import secrets
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
+from sqlalchemy import Column, LargeBinary
 from sqlmodel import Field, SQLModel
 
 
@@ -100,6 +101,19 @@ class ChangeOrder(SQLModel, table=True):
     # the milestone that bills this change order; its status is the change order's status
     milestone_id: int = Field(foreign_key="milestone.id")
     created_at: datetime = Field(default_factory=utcnow)
+
+
+class Deliverable(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    milestone_id: int = Field(foreign_key="milestone.id", index=True)
+    filename: str
+    content_type: str
+    size_bytes: int
+    data: bytes = Field(sa_column=Column(LargeBinary, nullable=False))
+    # watermarked, smaller copy for images; None for other file types.
+    # The full file is only served once the milestone is paid.
+    preview: bytes | None = Field(default=None, sa_column=Column(LargeBinary, nullable=True))
+    uploaded_at: datetime = Field(default_factory=utcnow)
 
 
 class WebhookEvent(SQLModel, table=True):

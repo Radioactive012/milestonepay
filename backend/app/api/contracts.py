@@ -11,6 +11,7 @@ from sqlmodel import Session, select
 from app import audit
 from app.ai.contract import ContractAI, ContractAIError, get_contract_ai
 from app.ai.guardrails import check_analysis
+from app.api.portal import file_list
 from app.billing import invoice_milestone, sync_from_paypal
 from app.db import get_session
 from app.milestones import apply_deposit, move
@@ -37,6 +38,7 @@ def contract_out(session: Session, contract: Contract) -> dict:
         .order_by(Invoice.created_at)
     ).all()
     latest_invoice = {inv.milestone_id: inv for inv in invoices}
+    files = file_list(session, [m.id for m in milestones], {m.id for m in milestones if m.status == "paid"})
     entries = session.exec(
         select(AuditEntry).where(AuditEntry.contract_id == contract.id).order_by(AuditEntry.id)
     ).all()
@@ -73,6 +75,7 @@ def contract_out(session: Session, contract: Contract) -> dict:
                 "is_deposit": m.is_deposit,
                 "status": m.status,
                 "invoice": _invoice_out(latest_invoice.get(m.id)),
+                "files": files.get(m.id, []),
             }
             for m in milestones
         ],

@@ -12,6 +12,16 @@ a database table or an API route needs both people.
 
 Newest at the top. One line per push: who, what changed, anything the other must do.
 
+- Vinayak: client portal backend is on main (`backend/app/api/portal.py`). Routes:
+  `POST /api/milestones/{id}/files` (upload), `GET /api/files/{id}` (freelancer download),
+  `GET /api/portal/{token}` (client view), `POST /api/portal/{token}/milestones/{id}/approve`
+  (client approves; event milestones get invoiced), `GET /api/portal/{token}/files/{id}/preview`
+  (watermarked image), `GET /api/portal/{token}/files/{id}` (402 until paid).
+  `GET /api/contracts/{id}` now lists `files` per milestone. Delete `backend/milestonepay.db`
+  after pulling (new `deliverable` table) and run `pip install -r requirements.txt` (Pillow).
+  Also fixed: missing Anthropic or PayPal keys now give a clear message instead of a crash.
+  Avirup: `ClaudeMessageAI` likely has the same missing-key crash; see `ClaudeContractAI.__init__`.
+
 - Vinayak: added `message`, `suggestion`, `change_order` tables, `contract.hourly_rate`
   (default 40, `PATCH /api/contracts/{id}`), `milestone.revisions_used`,
   `approve_change_order()` and `record_revision()`. Avirup: your routes can call these
@@ -53,10 +63,15 @@ extra only come back if the core works by Wednesday night. AG Grid and Render st
 - Routes: create contract, edit draft milestone, approve with deposit (deposit
   invoice goes out through PayPal), send milestone invoice, refresh from PayPal
 - PayPal "paid" webhook marks the invoice and milestone paid, stored so repeats are ignored
-- 36 passing tests, all with a pretend PayPal and a pretend AI
+- Message, suggestion and change order tables; hourly rate; change orders billed as
+  their own milestone; revision counting
+- Client portal backend: private link per contract, client approval, file upload,
+  watermarked previews, downloads locked until the PayPal invoice is paid
+- Clear errors when Anthropic or PayPal keys are missing
+- 71 passing tests, all with a pretend PayPal and a pretend AI
 
 ## Not done yet
 
-- Not yet run against real PayPal sandbox or the real Claude API (needs keys)
-- Client messages and scope-creep detection, client portal, file unlock,
-  reminders, frontend, deploy
+- Not yet run against real PayPal sandbox or the real Claude API (needs keys in `.env`)
+- Message and suggestion routes (Avirup), frontend screens (Avirup's PR #1, portal page),
+  reminders and demo clock, deploy to Render + Neon
