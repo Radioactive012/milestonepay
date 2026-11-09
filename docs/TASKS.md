@@ -12,6 +12,12 @@ a database table or an API route needs both people.
 
 Newest at the top. One line per push: who, what changed, anything the other must do.
 
+- Avirup: added `backend/app/api/messages.py` (message analysis and the approval inbox):
+  `POST /api/messages`, `GET /api/messages`, `GET /api/suggestions`, and `approve` and `dismiss`
+  for a suggestion. They call your `invoice_milestone`, `approve_change_order` and
+  `record_revision`. Heads-up on a shared file: one line added to `backend/app/main.py` to
+  include the router. `ai/messages.py` now uses your `round_to_quarter_hour`. Also in
+  pull request #1: the new project page (`frontend/`) and the evals (`backend/evals/`).
 - Vinayak: added `message`, `suggestion`, `change_order` tables, `contract.hourly_rate`
   (default 40, `PATCH /api/contracts/{id}`), `milestone.revisions_used`,
   `approve_change_order()` and `record_revision()`. Avirup: your routes can call these

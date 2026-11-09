@@ -69,3 +69,11 @@ def test_low_confidence_is_marked_possible():
     low.out_of_scope[0].confidence = 0.5
     checked = check_message_analysis(low, MESSAGE, CONTRACT, TITLES, Decimal("40"))
     assert checked.out_of_scope[0].possible
+
+
+def test_hours_round_to_quarter_hours_and_never_to_zero():
+    for raw, expected in [("1.1", "1.00"), ("2.63", "2.75"), ("0.05", "0.25")]:
+        item = analysis()
+        item.out_of_scope[0].estimated_hours = float(raw)
+        checked = check_message_analysis(item, MESSAGE, CONTRACT, TITLES, Decimal("40"))
+        assert checked.out_of_scope[0].estimated_hours == Decimal(expected)

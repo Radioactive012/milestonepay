@@ -12,6 +12,7 @@ import anthropic
 from pydantic import BaseModel, Field
 
 from app.ai.guardrails import quote_in_source
+from app.billing import round_to_quarter_hour
 from app.config import Settings, get_settings
 
 POSSIBLE_BELOW = 0.6
@@ -114,7 +115,7 @@ def check_message_analysis(
         elif not quote_in_source(item.contract_clause_quote, contract_text):
             dropped.append("Out-of-scope contract clause not found in the contract")
         else:
-            hours = Decimal(str(item.estimated_hours)).quantize(Decimal("0.25"), rounding=ROUND_HALF_UP)
+            hours = max(round_to_quarter_hour(Decimal(str(item.estimated_hours))), Decimal("0.25"))
             extras.append(
                 CheckedOutOfScope(
                     request_quote=item.request_quote,
