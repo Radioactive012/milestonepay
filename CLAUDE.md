@@ -7,15 +7,15 @@ PayPal (sandbox only), and the freelancer approves every step.
 
 ## The team
 
-Two people, each using Claude Code on their own Mac, both pushing to `main`.
+Two people, each using Claude Code on their own computer, both pushing to `main`.
+Each person's `CLAUDE.local.md` says which one they are.
 
-- **Person A: Vinayak** (GitHub `Radioactive012`). Owns PayPal, the database, money
-  flow, client portal and deploy.
-- **Person B: Avirup** (GitHub `avirupmac7-blip`). Owns the AI prompts, the web
-  screens, test contracts and messages, and the demo video.
+- **Person A** owns PayPal, the database, money flow, client portal and deploy.
+- **Person B** owns the AI prompts, the web screens, test contracts and messages,
+  and the demo video.
 
-Both are new to GitHub and to some technical terms. Explain things in plain words,
-say what a command will do before running it, and avoid jargon.
+Explain things in plain words, say what a command will do before running it, and
+avoid jargon.
 
 ## Who edits what
 
