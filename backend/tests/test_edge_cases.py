@@ -359,3 +359,83 @@ def test_neon_address_uses_psycopg_and_keeps_ssl(url):
     assert engine.url.drivername == "postgresql+psycopg"
     assert engine.url.query["sslmode"] == "require"
     assert engine.url.host.endswith("neon.tech") and engine.url.database == "neondb"
+
+
+# Status rules and the daily jobs
+
+
+def test_every_status_change_follows_the_rules(session):
+    from app.milestones import TRANSITIONS, InvalidTransition, move
+
+    statuses = list(TRANSITIONS)
+    contract = Contract(client_name="C", client_email="b@example.com", currency="USD", raw_text="x")
+    session.add(contract)
+    session.commit()
+    for old in statuses:
+        for new in statuses:
+            milestone = Milestone(contract_id=contract.id, position=1, title="M", amount=Decimal("10"), trigger="event", status=old)
+            session.add(milestone)
+            session.flush()
+            if new in TRANSITIONS[old]:
+                move(session, milestone, new, "user")
+                assert milestone.status == new
+            else:
+                with pytest.raises(InvalidTransition):
+                    move(session, milestone, new, "user")
+                assert milestone.status == old
+    assert TRANSITIONS["paid"] == set() and TRANSITIONS["cancelled"] == set()
+
+
+def test_rate_change_after_a_change_order_keeps_its_invoice(api, session, fake_paypal):
+    contract = active_contract(api)
+    order = approve_change_order(
+        session, fake_paypal, session.get(Contract, contract["id"]),
+        description="Menu", estimated_hours=Decimal("2.13"), actor="user",
+    )
+    assert order.estimated_hours == Decimal("2.25") and order.price == Decimal("90.00")
+    api.patch(f"/api/contracts/{contract['id']}", json={"hourly_rate": "100"})
+    invoice = session.exec(select(Invoice).where(Invoice.milestone_id == order.milestone_id)).one()
+    session.refresh(invoice)
+    assert invoice.amount == Decimal("90.00")
+    sent = [j for m, p, j in fake_paypal.calls if m == "POST" and p == "/v2/invoicing/invoices"][-1]
+    assert sent["items"][0]["unit_amount"]["value"] == "90.00"
+
+
+def test_jobs_chase_deposit_and_change_order_together_after_a_long_jump(api, session, fake_paypal):
+    from datetime import timedelta
+
+    from app import clock
+    from app.jobs import run_daily_jobs
+    from app.models import Reminder
+
+    contract = active_contract(api)
+    approve_change_order(
+        session, fake_paypal, session.get(Contract, contract["id"]),
+        description="Menu", estimated_hours=Decimal("1"), actor="user",
+    )
+    today = clock.today(session)
+    first = run_daily_jobs(session, fake_paypal, today + timedelta(days=60))
+    # both open invoices go overdue and get one final reminder each, not a burst
+    assert len(first["overdue"]) == 2
+    assert sorted(r["stage"] for r in first["reminders"]) == [14, 14]
+    # the dated logo milestone is invoiced too, and a run on the same day changes nothing
+    assert len(first["invoiced"]) == 1
+    again = run_daily_jobs(session, fake_paypal, today + timedelta(days=60))
+    assert again["invoiced"] == [] and again["overdue"] == [] and again["reminders"] == []
+    assert len(session.exec(select(Reminder)).all()) == 2
+
+
+def test_dated_milestone_whose_date_passed_gets_a_fresh_due_date(api, session, fake_paypal):
+    from datetime import timedelta
+
+    from app import clock
+    from app.jobs import run_daily_jobs
+
+    contract = api.post("/api/contracts", data={"client_email": "b@example.com", "text": CONTRACT_TEXT}).json()
+    logo = contract["milestones"][1]
+    today = clock.today(session)
+    api.patch(f"/api/milestones/{logo['id']}", json={"due_date": (today - timedelta(days=3)).isoformat()})
+    api.post(f"/api/contracts/{contract['id']}/approve", json={"deposit_pct": 0})
+    run_daily_jobs(session, fake_paypal, today)
+    invoice = session.exec(select(Invoice).where(Invoice.milestone_id == logo["id"])).one()
+    assert invoice.due_date == today + timedelta(days=15)  # never a due date in the past
