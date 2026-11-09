@@ -8,10 +8,16 @@ import type { Contract, MilestoneChanges } from "../types";
 type Step = "input" | "analysing" | "review" | "approving" | "approved";
 const DEPOSITS = [0, 25, 30, 50];
 
-export default function NewProject() {
+interface Props {
+  onApproved?: (contractId: number) => void;
+  onOpenProject?: () => void;
+}
+
+export default function NewProject({ onApproved, onOpenProject }: Props) {
   const [step, setStep] = useState<Step>("input");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [rate, setRate] = useState("40");
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [contract, setContract] = useState<Contract | null>(null);
@@ -25,9 +31,11 @@ export default function NewProject() {
     setError(null);
     if (!email.includes("@")) return setError("Enter the client's email address.");
     if (!text.trim() && !file) return setError("Paste the contract text or choose a file.");
+    const hourlyRate = Number(rate);
+    if (!Number.isFinite(hourlyRate) || hourlyRate <= 0) return setError("Enter an hourly rate above zero.");
     setStep("analysing");
     try {
-      const result = await createContract({ clientEmail: email, clientName: name || undefined, text: text.trim() || undefined, file });
+      const result = await createContract({ clientEmail: email, clientName: name || undefined, hourlyRate, text: text.trim() || undefined, file });
       setContract(result);
       setDeposit(result.deposit_pct_suggested);
       setStep("review");
@@ -54,7 +62,9 @@ export default function NewProject() {
     setError(null);
     setStep("approving");
     try {
-      setContract(await approveContract(contract.id, deposit));
+      const approved = await approveContract(contract.id, deposit);
+      setContract(approved);
+      onApproved?.(approved.id);
       setStep("approved");
     } catch (e) {
       fail(e);
@@ -104,6 +114,11 @@ export default function NewProject() {
                 className="w-full rounded-lg border border-slate-300 px-3 py-2" />
             </label>
           </div>
+          <label className="block text-sm sm:max-w-xs">
+            <span className="mb-1 block font-medium">Hourly rate <span className="font-normal text-slate-500">(prices extra work)</span></span>
+            <input value={rate} onChange={(e) => setRate(e.target.value)} inputMode="decimal"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+          </label>
           <label className="block text-sm">
             <span className="mb-1 block font-medium">Contract text</span>
             <textarea value={text} onChange={(e) => setText(e.target.value)} rows={10} placeholder="Paste the contract here"
@@ -191,6 +206,11 @@ export default function NewProject() {
                 <p className="text-sm text-emerald-900">
                   The milestones are approved{deposit === 0 ? " with no deposit." : "."}
                 </p>
+              )}
+              {onOpenProject && (
+                <button onClick={onOpenProject} className="rounded-lg border border-emerald-700 bg-white px-4 py-2 text-sm font-medium text-emerald-900">
+                  Go to messages and approvals
+                </button>
               )}
             </section>
           )}

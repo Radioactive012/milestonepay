@@ -16,6 +16,7 @@ export const fixtureContract = (): Contract => ({
   stated_total: "3200.00",
   milestone_total: "3200.00",
   payment_terms_days: 30,
+  hourly_rate: "40.00",
   status: "draft",
   portal_token: null,
   deposit_pct_suggested: 30,
@@ -46,9 +47,10 @@ export const fixtureContract = (): Contract => ({
     },
   ],
   milestones: [
-    { id: 1, position: 1, title: "Sketches", amount: "800.00", trigger: "event", trigger_description: "When sketches are approved", due_date: null, revision_limit: null, is_deposit: false, status: "draft", invoice: null },
-    { id: 2, position: 2, title: "Final logo", amount: "1400.00", trigger: "event", trigger_description: "On delivery of the final logo", due_date: null, revision_limit: null, is_deposit: false, status: "draft", invoice: null },
-    { id: 3, position: 3, title: "Brand kit", amount: "1000.00", trigger: "event", trigger_description: "On delivery of the brand kit", due_date: null, revision_limit: null, is_deposit: false, status: "draft", invoice: null },
+    { id: 1, position: 1, title: "Sketches", amount: "800.00", trigger: "event", trigger_description: "When sketches are approved", due_date: null, revision_limit: 2, revisions_used: 0, is_deposit: false, status: "draft", invoice: null },
+    { id: 2, position: 2, title: "Final logo", amount: "1400.00", trigger: "event", trigger_description: "On delivery of the final logo", due_date: null, revision_limit: 2, revisions_used: 0, is_deposit: false, status: "draft", invoice: null },
+    { id: 3, position: 3, title: "Brand kit", amount: "1000.00", trigger: "event", trigger_description: "On delivery of the brand kit", due_date: null, revision_limit: 2, revisions_used: 0, is_deposit: false, status: "draft", invoice: null },
   ],
+  change_orders: [],
   audit: [{ actor: "ai", action: "contract_analysed", details: { milestones: 3, risks: 3 }, at: new Date().toISOString() }],
 });

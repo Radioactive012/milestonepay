@@ -202,3 +202,11 @@ def test_message_thread_lists_messages_with_tags(api, message_ai, contract):
     thread = api.get(f"/api/messages?contract_id={contract.id}").json()
     assert thread[0]["body"] == MESSAGE
     assert {t["type"] for t in thread[0]["tags"]} == {"milestone_reached", "scope_creep"}
+
+
+def test_inbox_lists_newest_message_first_and_keeps_order_within_a_message(api, message_ai, contract):
+    post_message(api, contract)
+    message_ai.analysis = demo_analysis(milestone_signals=[])
+    post_message(api, contract, "Please also add a matching menu design for us")
+    types = [s["type"] for s in api.get("/api/suggestions").json()]
+    assert types == ["scope_creep", "milestone_reached", "scope_creep"]

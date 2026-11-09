@@ -242,7 +242,12 @@ def list_suggestions(
     contract_id: int | None = None,
     session: Session = Depends(get_session),
 ):
-    query = select(Suggestion).where(Suggestion.status == status).order_by(Suggestion.id.desc())
+    # newest message first, and inside one message the suggestions in the order the AI found them
+    query = (
+        select(Suggestion)
+        .where(Suggestion.status == status)
+        .order_by(Suggestion.message_id.desc(), Suggestion.id)
+    )
     if contract_id is not None:
         query = query.where(Suggestion.contract_id == contract_id)
     found = session.exec(query).all()
