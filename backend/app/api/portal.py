@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
@@ -8,8 +9,8 @@ from app import audit
 from app.billing import invoice_milestone, unlocked_milestone_ids
 from app.db import get_session
 from app.files import MAX_FILE_BYTES, make_preview, safe_filename
-from app.models import Contract, Deliverable, Invoice, Milestone
-from app.paypal.client import PayPalClient, get_paypal_client
+from app.models import AuditEntry, Contract, Deliverable, Invoice, Milestone
+from app.paypal.client import PayPalClient, PayPalError, get_paypal_client
 
 router = APIRouter(prefix="/api")
 
@@ -122,6 +123,25 @@ def _file_in(session: Session, contract: Contract, file_id: int) -> tuple[Delive
     return deliverable, milestone
 
 
+def client_approved_ids(session: Session, contract: Contract) -> set[int]:
+    """Milestones the client has already approved, read from the audit log."""
+    entries = session.exec(
+        select(AuditEntry.details_json).where(
+            AuditEntry.contract_id == contract.id, AuditEntry.action == "client_approved"
+        )
+    ).all()
+    return {json.loads(details).get("milestone_id") for details in entries}
+
+
+def _can_approve(milestone: Milestone, approved: set[int]) -> bool:
+    if milestone.is_deposit:
+        return False
+    # an event milestone stays approvable until its invoice goes out, so a failed one can be retried
+    if milestone.status == "awaiting_trigger":
+        return True
+    return milestone.status == "scheduled" and milestone.id not in approved
+
+
 def portal_view(session: Session, contract: Contract) -> dict:
     view = {"client_name": contract.client_name, "currency": contract.currency, "status": contract.status}
     if contract.status == "draft":
@@ -137,6 +157,7 @@ def portal_view(session: Session, contract: Contract) -> dict:
     latest = {inv.milestone_id: inv for inv in invoices}
     paid_ids = unlocked_milestone_ids(session, milestones)
     files = file_list(session, ids, paid_ids)
+    approved = client_approved_ids(session, contract)
     total = sum((m.amount for m in milestones), Decimal("0.00"))
     paid = sum((m.amount for m in milestones if m.id in paid_ids), Decimal("0.00"))
     return view | {
@@ -152,7 +173,8 @@ def portal_view(session: Session, contract: Contract) -> dict:
                 "due_date": m.due_date,
                 "trigger_description": m.trigger_description,
                 "is_deposit": m.is_deposit,
-                "can_approve": m.status in ("awaiting_trigger", "scheduled") and not m.is_deposit,
+                "can_approve": _can_approve(m, approved),
+                "approved_by_client": m.id in approved,
                 "invoice": None
                 if m.id not in latest
                 else {
@@ -186,11 +208,22 @@ def client_approves(
     milestone = _milestone_in(session, contract, milestone_id)
     if milestone.is_deposit or milestone.status not in ("awaiting_trigger", "scheduled"):
         raise HTTPException(status_code=409, detail="This milestone doesn't need your approval now.")
+    if not _can_approve(milestone, client_approved_ids(session, contract)):
+        return portal_view(session, contract)  # already approved; nothing more to do
 
     audit.record(session, contract.id, "client", "client_approved", milestone_id=milestone.id, title=milestone.title)
     session.commit()
     if milestone.status == "awaiting_trigger":
-        invoice_milestone(session, paypal, milestone, "client")
+        try:
+            invoice_milestone(session, paypal, milestone, "client")
+        except PayPalError:
+            # the client doesn't need PayPal's technical reason; the freelancer sees it on their side
+            session.rollback()
+            raise HTTPException(
+                status_code=502,
+                detail="Your approval is saved, but the invoice couldn't be created just now. "
+                "Please try again in a minute, or let your freelancer know.",
+            )
     return portal_view(session, contract)
 
 

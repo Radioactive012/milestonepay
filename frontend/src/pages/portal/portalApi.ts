@@ -27,6 +27,7 @@ export interface PortalMilestone {
   trigger_description: string;
   is_deposit: boolean;
   can_approve: boolean;
+  approved_by_client: boolean;
   invoice: PortalInvoice | null;
   files: PortalFile[];
 }

@@ -41,9 +41,9 @@ function describe(summary: JobsSummary) {
     summary.overdue.length && `${summary.overdue.length} invoice(s) now overdue`,
     summary.reminders.length && `${summary.reminders.length} PayPal reminder(s) sent`,
   ].filter(Boolean);
-  const done = parts.length ? parts.join(", ") : "nothing needed doing";
-  const errors = summary.errors.length ? ` Problems: ${summary.errors.join("; ")}` : "";
-  return `Daily jobs for ${summary.today}: ${done}.${errors}`;
+  const problems = summary.errors.length ? `Problems: ${summary.errors.join("; ")}` : "";
+  if (!parts.length) return `Daily jobs for ${summary.today}: ${problems || "nothing needed doing."}`;
+  return `Daily jobs for ${summary.today}: ${parts.join(", ")}.${problems && ` ${problems}`}`;
 }
 
 /** Demo controls for the video and for judges. Hidden when the backend has DEMO_MODE=false. */
@@ -90,7 +90,7 @@ export default function DemoBar() {
               } catch {
                 /* the app just opens on the dashboard instead */
               }
-              return "Demo project loaded from a saved AI reading, so no AI credit was used. Review it and approve it below.";
+              return "Demo project loaded from a saved AI reading, so no AI credit was used. Review it on the New project page, then approve it.";
             })}>
             Load demo project
           </button>

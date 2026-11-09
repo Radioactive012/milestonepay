@@ -83,7 +83,9 @@ Every answer must match a strict JSON schema, and code checks it before anything
 ## Try it (for judges)
 
 The freelancer side of the hosted demo asks for a password (any user name):
-_add the password here_. The client page opened from **Open as client** needs none.
+_add the password here_. Type it into the browser's login box; don't put it inside the link
+(`https://name:password@...`), because browsers then block the page's requests. The client page
+opened from **Open as client** needs no password.
 
 On the hosted demo, the yellow **Demo** bar at the top drives the whole story:
 

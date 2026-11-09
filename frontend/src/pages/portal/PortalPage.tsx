@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   PortalError, approveAsClient, downloadUrl, money, previewUrl, readPortal, readableSize,
   type PortalMilestone, type PortalView,
@@ -28,6 +28,12 @@ export default function PortalPage({ token }: { token: string }) {
   const [confirming, setConfirming] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const messageRef = useRef<HTMLDivElement>(null);
+
+  // the buttons are further down the page, so bring a new message into view
+  useEffect(() => {
+    if (error || notice) messageRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [error, notice]);
 
   const load = useCallback(async () => {
     try {
@@ -93,8 +99,10 @@ export default function PortalPage({ token }: { token: string }) {
 
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
         {!view && !error && <p className="text-sm text-slate-500">Loading your project…</p>}
-        {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
-        {notice && <p role="status" className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p>}
+        <div ref={messageRef} className="space-y-3 empty:hidden">
+          {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
+          {notice && <p role="status" className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p>}
+        </div>
 
         {view && (
           <>
@@ -217,6 +225,10 @@ function MilestoneCard({ milestone: m, currency, token, busy, confirming, onAsk,
       )}
       {canPay && (
         <p className="text-xs text-slate-500">After you pay, this page updates by itself within a few seconds.</p>
+      )}
+
+      {m.approved_by_client && !m.can_approve && !m.invoice && (
+        <p className="text-sm font-medium text-emerald-700">You approved this work. The invoice will come on its due date.</p>
       )}
 
       {m.can_approve &&

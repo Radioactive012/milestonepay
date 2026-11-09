@@ -439,3 +439,28 @@ def test_dated_milestone_whose_date_passed_gets_a_fresh_due_date(api, session, f
     run_daily_jobs(session, fake_paypal, today)
     invoice = session.exec(select(Invoice).where(Invoice.milestone_id == logo["id"])).one()
     assert invoice.due_date == today + timedelta(days=15)  # never a due date in the past
+
+
+def test_client_sees_plain_words_when_paypal_fails(api, fake_paypal):
+    contract = active_contract(api)
+    sketches = contract["milestones"][1]
+    fake_paypal.fail_create = True
+    url = f"/api/portal/{contract['portal_token']}/milestones/{sketches['id']}/approve"
+    response = api.post(url)
+    assert response.status_code == 502
+    assert "approval is saved" in response.json()["detail"] and ".env" not in response.json()["detail"]
+    fake_paypal.fail_create = False
+    assert api.post(url).status_code == 200  # trying again works
+
+
+def test_client_approves_a_dated_milestone_once(api):
+    contract = active_contract(api)
+    logo = contract["milestones"][2]
+    assert logo["trigger"] == "date"
+    url = f"/api/portal/{contract['portal_token']}/milestones/{logo['id']}/approve"
+    first = api.post(url).json()
+    shown = next(m for m in first["milestones"] if m["id"] == logo["id"])
+    assert shown["approved_by_client"] is True and shown["can_approve"] is False
+    api.post(url)  # a second click changes nothing
+    audit = api.get(f"/api/contracts/{contract['id']}").json()["audit"]
+    assert sum(1 for e in audit if e["action"] == "client_approved") == 1

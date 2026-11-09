@@ -53,3 +53,9 @@ def test_more_path_tricks_stay_inside_the_build(tmp_path):
     for path in ("/assets/../../secret.txt", "/assets/..%2f..%2fsecret.txt", "/..%2fsecret.txt",
                  f"/{tmp_path.parent}/secret.txt", "/%2e%2e%2fsecret.txt"):
         assert "do not serve" not in client.get(path).text, path
+
+
+def test_page_is_rechecked_after_every_deploy(tmp_path):
+    client = built_site(tmp_path)
+    for path in ("/", "/portal/abc123"):
+        assert client.get(path).headers["cache-control"] == "no-cache"
