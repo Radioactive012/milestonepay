@@ -1,4 +1,5 @@
 import base64
+import os
 from functools import lru_cache
 from typing import Protocol
 
@@ -47,12 +48,20 @@ class ContractAI(Protocol):
 
 class ClaudeContractAI:
     def __init__(self, settings: Settings):
+        # without a key the SDK fails with a TypeError on the first request, so check up front
+        self._has_key = bool(
+            settings.anthropic_api_key
+            or os.environ.get("ANTHROPIC_API_KEY")
+            or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+        )
         self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key or None)
         self._model = settings.anthropic_model
 
     def analyse(
         self, *, text: str | None, file_bytes: bytes | None, media_type: str | None
     ) -> ContractAnalysis:
+        if not self._has_key:
+            raise ContractAIError("Add your Anthropic API key to ANTHROPIC_API_KEY in .env, then restart the app.")
         content: list[dict] = []
         if file_bytes:
             data = base64.standard_b64encode(file_bytes).decode("utf-8")

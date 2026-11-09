@@ -25,7 +25,12 @@ class PayPalClient:
     def _access_token(self) -> str:
         if self._token and time.time() < self._token_expires_at - 60:
             return self._token
-        response = self._http.post(
+        if not (self._settings.paypal_client_id and self._settings.paypal_client_secret):
+            raise PayPalError(
+                401, "PayPal sandbox keys are missing. Add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET to .env."
+            )
+        response = self._send(
+            "POST",
             "/v1/oauth2/token",
             auth=(self._settings.paypal_client_id, self._settings.paypal_client_secret),
             data={"grant_type": "client_credentials"},
@@ -42,10 +47,16 @@ class PayPalClient:
         if response.status_code >= 400:
             raise PayPalError(response.status_code, response.text)
 
+    def _send(self, method: str, path: str, **kwargs) -> httpx.Response:
+        try:
+            return self._http.request(method, path, **kwargs)
+        except httpx.HTTPError as error:
+            raise PayPalError(503, f"Couldn't reach PayPal: {error.__class__.__name__}") from error
+
     def request(self, method: str, path: str, **kwargs) -> dict:
         headers = {"Authorization": f"Bearer {self._access_token()}"}
         headers.update(kwargs.pop("headers", {}))
-        response = self._http.request(method, path, headers=headers, **kwargs)
+        response = self._send(method, path, headers=headers, **kwargs)
         self._raise_for_error(response)
         return response.json() if response.content else {}
 

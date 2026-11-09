@@ -7,6 +7,7 @@ from app.api.contracts import router as contracts_router
 from app.config import get_settings
 from app.db import init_db
 from app.milestones import InvalidTransition
+from app.paypal.client import PayPalError
 from app.paypal.webhooks import router as webhook_router
 
 
@@ -24,6 +25,12 @@ app.include_router(webhook_router)
 @app.exception_handler(InvalidTransition)
 def invalid_transition(request: Request, error: InvalidTransition):
     return JSONResponse(status_code=409, content={"detail": str(error)})
+
+
+@app.exception_handler(PayPalError)
+def paypal_error(request: Request, error: PayPalError):
+    # PayPal retries webhooks that get a non-2xx answer, so a 502 here is safe
+    return JSONResponse(status_code=502, content={"detail": str(error)[:300]})
 
 
 @app.get("/health")
