@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# Personal Claude notes, never shared
+CLAUDE.local.md
+
 # Python
 __pycache__/
 *.pyc
