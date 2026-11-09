@@ -14,7 +14,7 @@ from app.ai.llm import AIError
 from app.ai.schemas import ContractAnalysis
 from app.ai.guardrails import check_analysis
 from app.api.portal import file_list
-from app.billing import invoice_milestone, sync_from_paypal
+from app.billing import invoice_milestone, one_at_a_time, sync_from_paypal, unlocked_milestone_ids
 from app.db import get_session
 from app.milestones import apply_deposit, move
 from app.models import DEFAULT_HOURLY_RATE, AuditEntry, ChangeOrder, Contract, Invoice, Milestone, Reminder
@@ -45,7 +45,7 @@ def contract_out(session: Session, contract: Contract) -> dict:
         select(Reminder).where(Reminder.invoice_id.in_([inv.id for inv in invoices])).order_by(Reminder.id)
     ).all():
         reminders.setdefault(r.invoice_id, []).append({"stage": r.stage, "subject": r.subject, "sent_at": r.sent_at})
-    files = file_list(session, [m.id for m in milestones], {m.id for m in milestones if m.status == "paid"})
+    files = file_list(session, [m.id for m in milestones], unlocked_milestone_ids(session, milestones))
     entries = session.exec(
         select(AuditEntry).where(AuditEntry.contract_id == contract.id).order_by(AuditEntry.id)
     ).all()
@@ -260,8 +260,9 @@ def update_milestone(
     milestone_id: int, changes: MilestoneUpdate, session: Session = Depends(get_session)
 ):
     milestone = _get_or_404(session, Milestone, milestone_id)
-    if milestone.status != "draft":
-        raise HTTPException(status_code=409, detail="Only draft milestones can be edited.")
+    contract = session.get(Contract, milestone.contract_id)
+    if milestone.status != "draft" or contract.status != "draft":
+        raise HTTPException(status_code=409, detail="Milestones can only be edited before the contract is approved.")
     updates = changes.model_dump(exclude_unset=True)
     for key, value in updates.items():
         setattr(milestone, key, value)
@@ -284,6 +285,12 @@ def approve_contract(
     session: Session = Depends(get_session),
     paypal: PayPalClient = Depends(get_paypal_client),
 ):
+    # one approval at a time per contract, so a double click can't add two deposits
+    with one_at_a_time("contract", contract_id):
+        return _approve_contract(contract_id, body, session, paypal)
+
+
+def _approve_contract(contract_id: int, body: ApproveRequest, session: Session, paypal: PayPalClient) -> dict:
     contract = _get_or_404(session, Contract, contract_id)
     if contract.status != "draft":
         raise HTTPException(status_code=409, detail="This contract is already approved.")
@@ -364,7 +371,7 @@ def refresh_invoice(
     try:
         sync_from_paypal(session, paypal, invoice, "system")
     except PayPalError as error:
-        raise HTTPException(status_code=502, detail=f"Couldn't read the invoice from PayPal ({error.status_code}).")
+        raise HTTPException(status_code=502, detail=f"Couldn't read the invoice from PayPal: {paypal_reason(error)}")
     session.commit()
     milestone = session.get(Milestone, invoice.milestone_id)
     return contract_out(session, session.get(Contract, milestone.contract_id))

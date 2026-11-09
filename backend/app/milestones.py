@@ -73,5 +73,7 @@ def apply_deposit(amounts: list[Decimal], pct: int) -> tuple[Decimal, list[Decim
     deposit = (total * pct / 100).quantize(CENT, rounding=ROUND_HALF_UP)
     reduced = [(a * (100 - pct) / 100).quantize(CENT, rounding=ROUND_HALF_UP) for a in amounts]
     if reduced:
-        reduced[-1] += total - deposit - sum(reduced, Decimal("0"))
+        # the leftover cent or two from rounding goes on the largest milestone, so none can hit zero
+        largest = max(range(len(reduced)), key=lambda i: reduced[i])
+        reduced[largest] += total - deposit - sum(reduced, Decimal("0"))
     return deposit, reduced

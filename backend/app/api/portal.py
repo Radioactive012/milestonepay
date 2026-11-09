@@ -5,7 +5,7 @@ from sqlalchemy.orm import defer
 from sqlmodel import Session, select
 
 from app import audit
-from app.billing import invoice_milestone
+from app.billing import invoice_milestone, unlocked_milestone_ids
 from app.db import get_session
 from app.files import MAX_FILE_BYTES, make_preview, safe_filename
 from app.models import Contract, Deliverable, Invoice, Milestone
@@ -48,7 +48,11 @@ def _download(deliverable: Deliverable) -> Response:
     return Response(
         content=deliverable.data,
         media_type=deliverable.content_type,
-        headers={"Content-Disposition": f'attachment; filename="{deliverable.filename}"'},
+        # always a download, never shown as a page, so an uploaded HTML or SVG file can't run
+        headers={
+            "Content-Disposition": f'attachment; filename="{deliverable.filename}"',
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 
@@ -131,7 +135,7 @@ def portal_view(session: Session, contract: Contract) -> dict:
     ids = [m.id for m in milestones]
     invoices = session.exec(select(Invoice).where(Invoice.milestone_id.in_(ids)).order_by(Invoice.created_at)).all()
     latest = {inv.milestone_id: inv for inv in invoices}
-    paid_ids = {m.id for m in milestones if m.status == "paid"}
+    paid_ids = unlocked_milestone_ids(session, milestones)
     files = file_list(session, ids, paid_ids)
     total = sum((m.amount for m in milestones), Decimal("0.00"))
     paid = sum((m.amount for m in milestones if m.id in paid_ids), Decimal("0.00"))
@@ -202,7 +206,7 @@ def client_preview(token: str, file_id: int, session: Session = Depends(get_sess
 def client_download(token: str, file_id: int, session: Session = Depends(get_session)):
     contract = _contract_for(session, token)
     deliverable, milestone = _file_in(session, contract, file_id)
-    if milestone.status != "paid":
+    if milestone.id not in unlocked_milestone_ids(session, [milestone]):
         raise HTTPException(status_code=402, detail="Pay this milestone's invoice to download the full file.")
     audit.record(
         session, contract.id, "client", "file_downloaded", milestone_id=milestone.id, filename=deliverable.filename
