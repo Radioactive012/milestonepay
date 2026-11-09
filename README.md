@@ -176,7 +176,8 @@ to a minute to load.
   `Dockerfile` runs it. Running several copies would need a database lock instead.
 - **Sleeping pauses reminders.** On Render's free plan the hourly jobs only run while the app
   is awake; the next run catches up and sends the latest reminder due, once.
-- **Sandbox only**, and tested with US dollar invoices.
+- **Sandbox only**, and tested with US dollar invoices. PayPal sends at most 2 reminders a day,
+  so with big demo clock jumps some reminders wait for a later run.
 
 ## Project layout
 

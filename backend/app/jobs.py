@@ -89,7 +89,11 @@ def _chase_open_invoices(session: Session, paypal: PayPalClient, today: date, su
         try:
             remind_invoice(paypal, invoice.paypal_invoice_id, subject, note)
         except PayPalError as error:
-            summary["errors"].append(f"Reminder for {invoice.number} failed: {paypal_reason(error)}")
+            if error.status_code == 429:
+                reason = "PayPal allows only 2 reminders a day, so it will go out on a later run."
+            else:
+                reason = paypal_reason(error)
+            summary["errors"].append(f"Reminder for {invoice.number} not sent yet: {reason}")
             continue
         session.add(Reminder(invoice_id=invoice.id, stage=stage, subject=subject, note=note))
         audit.record(

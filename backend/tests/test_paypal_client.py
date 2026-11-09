@@ -193,3 +193,25 @@ def test_paypal_reason_is_short_and_readable(error, expected):
     from app.paypal.client import paypal_reason
 
     assert paypal_reason(error) == expected
+
+
+@pytest.mark.parametrize(
+    "created",
+    [
+        {"rel": "self", "href": "https://api-m.sandbox.paypal.com/v2/invoicing/invoices/INV2-AAAA", "method": "GET"},
+        {"id": "INV2-AAAA", "status": "DRAFT"},
+        {"links": [{"rel": "send", "href": "https://x/v2/invoicing/invoices/INV2-AAAA/send"},
+                   {"rel": "self", "href": "https://x/v2/invoicing/invoices/INV2-AAAA"}]},
+    ],
+)
+def test_new_invoice_id_is_found_in_every_reply_shape(created):
+    from app.paypal.invoices import created_invoice_id
+
+    assert created_invoice_id(created) == "INV2-AAAA"
+
+
+def test_reply_without_an_invoice_id_is_a_clear_error():
+    from app.paypal.invoices import created_invoice_id
+
+    with pytest.raises(ValueError, match="didn't say which invoice"):
+        created_invoice_id({"links": []})
