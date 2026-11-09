@@ -13,9 +13,9 @@ from app.billing import approve_change_order, invoice_milestone, sync_from_paypa
 from app.db import get_session, init_db, make_engine
 from app.main import app
 from app.milestones import apply_deposit
-from app.models import ChangeOrder, Contract, Invoice, Milestone
+from app.models import ChangeOrder, Contract, Invoice, Milestone, Suggestion
 from app.paypal.client import PayPalError, get_paypal_client
-from tests.conftest import CONTRACT_TEXT, FakeAI, FakePayPal
+from tests.conftest import CONTRACT_TEXT, TEST_DATABASE_URL, FakeAI, FakePayPal
 from tests.test_portal import active_contract, pay, png_bytes, upload
 
 
@@ -34,7 +34,9 @@ class SlowPayPal(FakePayPal):
 
 
 @pytest.fixture
-def file_engine(tmp_path):
+def file_engine(tmp_path, request):
+    if TEST_DATABASE_URL:
+        return request.getfixturevalue("engine")
     # a real file, so separate threads get separate connections like the live app
     engine = make_engine(f"sqlite:///{tmp_path / 'test.db'}")
     init_db(engine)
@@ -76,6 +78,14 @@ def at_once(*calls):
     for t in threads:
         t.join()
     return results
+
+
+def make_suggestion(engine, contract_id) -> int:
+    with Session(engine) as session:
+        suggestion = Suggestion(contract_id=contract_id, type="scope_creep")
+        session.add(suggestion)
+        session.commit()
+        return suggestion.id
 
 
 def created_invoices(paypal) -> int:
@@ -122,12 +132,13 @@ def test_client_double_click_on_approve_sends_one_invoice(threaded_api, slow_pay
 
 def test_same_change_order_approved_twice_at_once_is_made_once(threaded_api, slow_paypal, file_engine):
     contract = active_contract(threaded_api)
+    suggestion_id = make_suggestion(file_engine, contract["id"])
 
     def approve():
         with Session(file_engine) as session:
             return approve_change_order(
                 session, slow_paypal, session.get(Contract, contract["id"]),
-                description="Menu design", estimated_hours=Decimal("3"), actor="user", suggestion_id=7,
+                description="Menu design", estimated_hours=Decimal("3"), actor="user", suggestion_id=suggestion_id,
             ).id
 
     first, second = at_once(approve, approve)
@@ -136,13 +147,14 @@ def test_same_change_order_approved_twice_at_once_is_made_once(threaded_api, slo
         assert len(session.exec(select(ChangeOrder)).all()) == 1
 
 
-def test_change_order_for_an_approved_suggestion_is_not_made_again(api, session, fake_paypal):
+def test_change_order_for_an_approved_suggestion_is_not_made_again(api, session, engine, fake_paypal):
     contract = active_contract(api)
+    suggestion_id = make_suggestion(engine, contract["id"])
     c = session.get(Contract, contract["id"])
     first = approve_change_order(session, fake_paypal, c, description="Menu", estimated_hours=Decimal("2"),
-                                 actor="user", suggestion_id=3)
+                                 actor="user", suggestion_id=suggestion_id)
     second = approve_change_order(session, fake_paypal, c, description="Menu", estimated_hours=Decimal("2"),
-                                  actor="user", suggestion_id=3)
+                                  actor="user", suggestion_id=suggestion_id)
     assert first.id == second.id
     assert len(session.exec(select(ChangeOrder)).all()) == 1
 
@@ -330,3 +342,20 @@ def test_freelancer_can_download_own_file_any_time(api):
     response = api.get(f"/api/files/{file_id}")
     assert response.status_code == 200 and response.content == data
     assert api.get("/api/files/9999").status_code == 404
+
+
+# Hosting: Neon and Render give database addresses in a few spellings
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "postgresql://user:pw@ep-cool-1.eu-central-1.aws.neon.tech/neondb?sslmode=require",
+        "postgres://user:pw@ep-cool-1.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
+    ],
+)
+def test_neon_address_uses_psycopg_and_keeps_ssl(url):
+    engine = make_engine(url)  # makes no connection yet
+    assert engine.url.drivername == "postgresql+psycopg"
+    assert engine.url.query["sslmode"] == "require"
+    assert engine.url.host.endswith("neon.tech") and engine.url.database == "neondb"

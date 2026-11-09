@@ -1,8 +1,9 @@
+import os
 import re
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session
+from sqlmodel import Session, SQLModel
 
 from app.ai.contract import get_contract_ai
 from app.ai.llm import DailyAILimit, get_ai_limit
@@ -133,11 +134,23 @@ class FakePayPal:
         return self.webhooks_valid
 
 
+# Set TEST_DATABASE_URL to run every test against Postgres instead of an in-memory SQLite.
+# Every table in that database is dropped before each test, so never point it at real data.
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
+
+
 @pytest.fixture
 def engine():
-    engine = make_engine("sqlite://")
+    if TEST_DATABASE_URL:
+        import app.models  # noqa: F401  registers the tables
+
+        engine = make_engine(TEST_DATABASE_URL)
+        SQLModel.metadata.drop_all(engine)
+    else:
+        engine = make_engine("sqlite://")
     init_db(engine)
-    return engine
+    yield engine
+    engine.dispose()
 
 
 @pytest.fixture
