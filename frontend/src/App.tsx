@@ -1,11 +1,12 @@
 import { useState } from "react";
+import Dashboard from "./pages/Dashboard";
 import NewProject from "./pages/NewProject";
 import ProjectPage from "./pages/ProjectPage";
 
-type View = "new" | "project";
+type View = "dashboard" | "new" | "project";
 
 export default function App() {
-  const [view, setView] = useState<View>("new");
+  const [view, setView] = useState<View>("dashboard");
   const [contractId, setContractId] = useState<number | null>(null);
 
   const tab = (name: View, label: string) => (
@@ -20,17 +21,25 @@ export default function App() {
   return (
     <>
       <nav className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-3">
-          <span className="text-lg font-bold">MilestonePay</span>
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-2 px-4 py-3">
+          <span className="mr-2 text-lg font-bold">MilestonePay</span>
+          {tab("dashboard", "Dashboard")}
           {tab("new", "New project")}
           {tab("project", "Messages and approvals")}
         </div>
       </nav>
-      {view === "new" ? (
-        <NewProject onApproved={(id) => setContractId(id)} onOpenProject={() => setView("project")} />
-      ) : (
-        <ProjectPage key={contractId ?? "none"} contractId={contractId} />
+      {view === "dashboard" && (
+        <Dashboard
+          onNewProject={() => setView("new")}
+          onOpenInbox={() => setView("project")}
+          onOpenProject={(id) => {
+            setContractId(id);
+            setView("project");
+          }}
+        />
       )}
+      {view === "new" && <NewProject onApproved={(id) => setContractId(id)} onOpenProject={() => setView("project")} />}
+      {view === "project" && <ProjectPage key={contractId ?? "none"} contractId={contractId} />}
     </>
   );
 }

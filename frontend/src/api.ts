@@ -44,6 +44,9 @@ let nextId = 1;
 const pause = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms));
 const quarter = (hours: number) => Math.max(Math.round(hours * 4) / 4, 0.25);
 const now = () => new Date().toISOString();
+const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+const fxAudit = (c: Contract, actor: string, action: string, details: Record<string, unknown> = {}) =>
+  c.audit.push({ actor, action, details, at: now() });
 
 function approveDemo(c: Contract, depositPct: number) {
   const total = c.milestones.reduce((s, m) => s + Number(m.amount ?? 0), 0);
@@ -64,9 +67,11 @@ function approveDemo(c: Contract, depositPct: number) {
       trigger_description: "Paid before work starts", due_date: null, revision_limit: null, revisions_used: 0,
       is_deposit: true, status: "invoiced",
       invoice: { id: 1, number: "MP-2026-0001", paypal_invoice_id: "INV2-DEMO", amount: deposit.toFixed(2), status: "SENT",
-        payer_url: "https://www.sandbox.paypal.com/", due_date: null, paid_at: null },
+        payer_url: "https://www.sandbox.paypal.com/", due_date: inDays(30), paid_at: null },
     });
+    fxAudit(c, "user", "invoice_sent", { number: "MP-2026-0001", amount: deposit.toFixed(2) });
   }
+  fxAudit(c, "user", "contract_approved", { deposit_pct: depositPct });
 }
 
 /** The demo contract, approved with no deposit if nobody went through the new project page yet. */
@@ -78,7 +83,7 @@ function activeDemo(): Contract {
 
 function fxInvoice(amount: string, id: number) {
   return { id, number: `MP-2026-${String(id).padStart(4, "0")}`, paypal_invoice_id: `INV2-DEMO-${id}`, amount, status: "SENT",
-    payer_url: "https://www.sandbox.paypal.com/", due_date: null, paid_at: null };
+    payer_url: "https://www.sandbox.paypal.com/", due_date: inDays(30), paid_at: null };
 }
 
 // --- contracts ---
@@ -122,6 +127,7 @@ export async function readContract(id: number): Promise<Contract> {
 export async function updateHourlyRate(id: number, rate: number): Promise<Contract> {
   if (USE_FIXTURES) {
     activeDemo().hourly_rate = rate.toFixed(2);
+    fxAudit(demo!, "user", "hourly_rate_changed", { hourly_rate: rate.toFixed(2) });
     return structuredClone(demo!);
   }
   return request<Contract>(`/api/contracts/${id}`, json("PATCH", { hourly_rate: rate }));
@@ -158,6 +164,7 @@ export async function refreshInvoice(invoiceId: number): Promise<Contract> {
     m.invoice!.status = "PAID";
     m.invoice!.paid_at = now();
     m.status = "paid";
+    fxAudit(demo, "paypal", "invoice_paid", { number: m.invoice!.number, amount: m.invoice!.amount });
     return structuredClone(demo);
   }
   return request<Contract>(`/api/invoices/${invoiceId}/refresh`, { method: "POST" });
@@ -181,6 +188,7 @@ export async function postMessage(contractId: number, body: string): Promise<Pos
     made.forEach((s) => (s.message_id = message.id));
     fxMessages.push(message);
     fxSuggestions.push(...made);
+    fxAudit(c, "ai", "message_analysed", { message_id: message.id, suggestions: made.length, dropped: dropped.length });
     return structuredClone({ message, suggestions: made, dropped });
   }
   return request<PostMessageResult>("/api/messages", json("POST", { contract_id: contractId, body }));
@@ -195,14 +203,14 @@ export async function listMessages(contractId: number): Promise<ThreadMessage[]>
   return request<ThreadMessage[]>(`/api/messages?contract_id=${contractId}`);
 }
 
-export async function listSuggestions(contractId: number, status = "pending"): Promise<Suggestion[]> {
+export async function listSuggestions(contractId: number | null, status = "pending"): Promise<Suggestion[]> {
   if (USE_FIXTURES) {
     // newest message first; inside one message, the order the AI found them
     const found = fxSuggestions.filter((s) => s.status === status);
     found.sort((a, b) => (b.message_id ?? 0) - (a.message_id ?? 0) || a.id - b.id);
     return structuredClone(found);
   }
-  return request<Suggestion[]>(`/api/suggestions?status=${status}&contract_id=${contractId}`);
+  return request<Suggestion[]>(`/api/suggestions?status=${status}${contractId === null ? "" : `&contract_id=${contractId}`}`);
 }
 
 export async function dismissSuggestion(id: number): Promise<Suggestion> {
@@ -210,6 +218,7 @@ export async function dismissSuggestion(id: number): Promise<Suggestion> {
     const s = fxSuggestions.find((x) => x.id === id && x.status === "pending");
     if (!s) throw new ApiError("This suggestion was already handled.");
     s.status = "dismissed";
+    fxAudit(activeDemo(), "user", "suggestion_dismissed", { suggestion_id: s.id, type: s.type });
     return structuredClone(s);
   }
   return request<Suggestion>(`/api/suggestions/${id}/dismiss`, { method: "POST" });
@@ -226,6 +235,7 @@ export async function approveSuggestion(id: number, edits?: ApproveEdits): Promi
     if (s.type === "milestone_reached" && milestone) {
       milestone.status = "invoiced";
       milestone.invoice = fxInvoice(milestone.amount ?? "0.00", nextId++);
+      fxAudit(c, "user", "invoice_sent", { number: milestone.invoice.number, amount: milestone.amount });
     } else if (s.type === "scope_creep") {
       const hours = quarter(edits?.hours ?? Number(s.payload.estimated_hours));
       const description = (edits?.description ?? String(s.payload.description)).trim();
@@ -238,11 +248,14 @@ export async function approveSuggestion(id: number, edits?: ApproveEdits): Promi
         trigger_description: `${hours.toFixed(2)} h at ${c.currency} ${c.hourly_rate}/h`, due_date: null,
         revision_limit: null, revisions_used: 0, is_deposit: false, status: "invoiced", invoice: fxInvoice(price, nextId++),
       });
+      fxAudit(c, "user", "change_order_approved", { description, hours: hours.toFixed(2), price });
       c.change_orders.push({ id: nextId++, description, estimated_hours: hours.toFixed(2), price, milestone_id: milestoneId, suggestion_id: s.id });
     } else if (s.type === "extra_revision" && milestone) {
       milestone.revisions_used += 1;
+      fxAudit(c, "user", "revision_counted", { milestone_id: milestone.id, used: milestone.revisions_used });
     }
     s.status = "approved";
+    fxAudit(c, "user", "suggestion_approved", { suggestion_id: s.id, type: s.type });
     return structuredClone({ suggestion: s, contract: c });
   }
   return request<ApproveResult>(`/api/suggestions/${id}/approve`, edits ? json("POST", edits) : { method: "POST" });

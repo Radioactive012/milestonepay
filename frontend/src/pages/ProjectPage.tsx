@@ -4,6 +4,7 @@ import {
   listSuggestions, postMessage, readContract, updateHourlyRate,
 } from "../api";
 import MessageThread from "../components/MessageThread";
+import { AuditLog, InvoiceLedger, MilestonesGrid } from "../components/ProjectGrids";
 import SuggestionCard from "../components/SuggestionCard";
 import type { ApproveEdits, Contract, ContractSummary, Suggestion, ThreadMessage } from "../types";
 
@@ -89,8 +90,6 @@ export default function ProjectPage({ contractId: initialId }: { contractId: num
       setNotice("Hourly rate saved. It applies to new change orders.");
     });
 
-  const money = new Intl.NumberFormat(undefined, { style: "currency", currency: contract?.currency || "USD" });
-
   if (contracts !== null && contracts.length === 0 && contractId === null) {
     return (
       <main className="mx-auto max-w-5xl px-4 py-8">
@@ -140,20 +139,7 @@ export default function ProjectPage({ contractId: initialId }: { contractId: num
                 </button>
               </label>
             </div>
-            <ul className="divide-y divide-slate-100 text-sm">
-              {contract.milestones.map((m) => (
-                <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                  <span className="font-medium">{m.title}</span>
-                  <span className="flex items-center gap-3 text-slate-600">
-                    {!m.is_deposit && m.trigger !== "change_order" && m.revision_limit !== null && (
-                      <span className="text-xs">revisions {m.revisions_used}/{m.revision_limit}</span>
-                    )}
-                    <span>{money.format(Number(m.amount ?? 0))}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">{m.status}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <MilestonesGrid contract={contract} />
           </section>
 
           <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
@@ -193,6 +179,17 @@ export default function ProjectPage({ contractId: initialId }: { contractId: num
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">Message thread</h2>
             <MessageThread messages={messages} />
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold">Invoices</h2>
+            <InvoiceLedger contract={contract} />
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold">Audit log</h2>
+            <p className="text-sm text-slate-600">Everything the AI, you, the client and PayPal did on this project.</p>
+            <AuditLog contract={contract} />
           </section>
         </>
       )}
