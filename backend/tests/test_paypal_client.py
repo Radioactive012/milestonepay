@@ -142,3 +142,24 @@ def test_verify_webhook_sends_headers_and_webhook_id(status, expected):
     assert sent["webhook_id"] == "WH-1"
     assert sent["transmission_id"] == "t-1"
     assert sent["webhook_event"] == {"id": "WH-EVT-1"}
+
+
+def test_missing_keys_give_a_clear_error_without_calling_paypal():
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("PayPal should not be called without keys")
+
+    client = PayPalClient(
+        make_settings(paypal_client_id="", paypal_client_secret=""), transport=httpx.MockTransport(handler)
+    )
+    with pytest.raises(PayPalError) as error:
+        client.request("GET", "/v2/invoicing/invoices/INV2-1")
+    assert "keys are missing" in str(error.value)
+
+
+def test_network_failure_becomes_paypal_error():
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("no internet")
+
+    with pytest.raises(PayPalError) as error:
+        make_client(handler).request("GET", "/v2/invoicing/invoices/INV2-1")
+    assert error.value.status_code == 503

@@ -8,12 +8,11 @@ from decimal import ROUND_HALF_UP, Decimal
 from functools import lru_cache
 from typing import Protocol
 
-import anthropic
 from pydantic import BaseModel, Field
 
 from app.ai.guardrails import quote_in_source
+from app.ai.llm import AIError, OpenRouterLLM, get_llm
 from app.billing import round_to_quarter_hour
-from app.config import Settings, get_settings
 
 POSSIBLE_BELOW = 0.6
 
@@ -140,18 +139,13 @@ def check_message_analysis(
     return CheckedMessage(signals, extras, revisions, dropped=dropped)
 
 
-class MessageAIError(Exception):
-    pass
-
-
 class MessageAI(Protocol):
     def analyse(self, *, message: str, contract_text: str, milestones: list[dict]) -> MessageAnalysis: ...
 
 
-class ClaudeMessageAI:
-    def __init__(self, settings: Settings):
-        self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key or None)
-        self._model = settings.anthropic_model
+class MessageReader:
+    def __init__(self, llm: OpenRouterLLM):
+        self._llm = llm
 
     def analyse(self, *, message: str, contract_text: str, milestones: list[dict]) -> MessageAnalysis:
         lines = [
@@ -163,29 +157,10 @@ class ClaudeMessageAI:
             f"<milestones>\n" + "\n".join(lines) + "\n</milestones>\n\n"
             f"<client_message>\n{message}\n</client_message>"
         )
-        try:
-            response = self._client.messages.parse(
-                model=self._model,
-                max_tokens=4000,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": content}],
-                output_format=MessageAnalysis,
-                extra_headers={"anthropic-beta": "server-side-fallback-2026-07-01"},
-                extra_body={"fallbacks": "default"},
-            )
-        except anthropic.AuthenticationError:
-            raise MessageAIError("The Anthropic API key is missing or invalid. Check ANTHROPIC_API_KEY in .env.")
-        except anthropic.RateLimitError:
-            raise MessageAIError("The AI is rate limited right now. Try again in a minute.")
-        except anthropic.APIStatusError as error:
-            raise MessageAIError(f"The AI request failed ({error.status_code}). Try again.")
-        except anthropic.APIConnectionError:
-            raise MessageAIError("Couldn't reach the AI service. Check the internet connection.")
-        if response.stop_reason == "refusal" or response.parsed_output is None:
-            raise MessageAIError("Couldn't read this message. Please handle it by hand.")
-        return response.parsed_output
+        # ask_json checks the shape and retries once itself; errors come back as AIError
+        return self._llm.ask_json(system=SYSTEM_PROMPT, content=content, output=MessageAnalysis, max_tokens=4000)
 
 
 @lru_cache
 def get_message_ai() -> MessageAI:
-    return ClaudeMessageAI(get_settings())
+    return MessageReader(get_llm())

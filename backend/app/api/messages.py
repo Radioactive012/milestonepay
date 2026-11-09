@@ -13,7 +13,8 @@ from pydantic import BaseModel, Field, ValidationError
 from sqlmodel import Session, select
 
 from app import audit
-from app.ai.messages import POSSIBLE_BELOW, MessageAI, MessageAIError, check_message_analysis, get_message_ai
+from app.ai.llm import AIError
+from app.ai.messages import POSSIBLE_BELOW, MessageAI, check_message_analysis, get_message_ai
 from app.api.contracts import contract_out
 from app.billing import approve_change_order, invoice_milestone
 from app.db import get_session
@@ -88,15 +89,13 @@ def _analyse(ai: MessageAI, body: str, contract: Contract, milestones: list[Mile
         }
         for m in milestones
     ]
-    last: Exception | None = None
-    for _ in range(2):  # one automatic retry, then give up
-        try:
-            return ai.analyse(message=body, contract_text=contract.raw_text, milestones=listed)
-        except MessageAIError as error:
-            last = error
-        except ValidationError:
-            last = MessageAIError("Couldn't read this message. Please handle it by hand.")
-    raise HTTPException(status_code=502, detail=str(last))
+    try:
+        # one call only: ask_json already retries once on a wrong format, and each call costs credit
+        return ai.analyse(message=body, contract_text=contract.raw_text, milestones=listed)
+    except AIError as error:
+        raise HTTPException(status_code=502, detail=str(error))
+    except ValidationError:
+        raise HTTPException(status_code=502, detail="Couldn't read this message. Please handle it by hand.")
 
 
 @router.post("/messages", status_code=201)

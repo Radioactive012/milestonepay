@@ -22,12 +22,13 @@ filled in with setup steps, a hosted demo link, and a judge walkthrough.
 
 ## Tech
 
-Python and FastAPI backend, React and TypeScript frontend, Claude for the AI steps,
-PayPal Invoicing and Webhooks (sandbox), AG Grid, Postgres, hosted on Render.
+Python and FastAPI backend, React and TypeScript frontend, DeepSeek V4.1 Flash through
+OpenRouter for the AI steps, PayPal Invoicing and Webhooks (sandbox), AG Grid, Postgres,
+hosted on Render.
 
 ## Setup
 
-Copy `.env.example` to `.env` and add your own PayPal sandbox and Anthropic keys.
+Copy `.env.example` to `.env` and add your own PayPal sandbox and OpenRouter keys.
 
 Backend (Python 3.11 or newer):
 

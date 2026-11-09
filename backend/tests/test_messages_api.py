@@ -3,7 +3,8 @@ from decimal import Decimal
 import pytest
 from sqlmodel import select
 
-from app.ai.messages import MessageAIError, MessageAnalysis, MilestoneSignal, OutOfScope, RevisionRequest, get_message_ai
+from app.ai.llm import AIError
+from app.ai.messages import MessageAnalysis, MilestoneSignal, OutOfScope, RevisionRequest, get_message_ai
 from app.main import app
 from app.models import AuditEntry, ChangeOrder, Contract, Milestone
 from tests.conftest import CONTRACT_TEXT
@@ -39,7 +40,7 @@ class FakeMessageAI:
     def analyse(self, *, message, contract_text, milestones):
         self.calls += 1
         if self.calls <= self.failures:
-            raise MessageAIError("Couldn't reach the AI service. Check the internet connection.")
+            raise AIError("Couldn't reach the AI service. Check the internet connection.")
         return self.analysis
 
 
@@ -90,16 +91,13 @@ def test_message_needs_an_approved_contract(api, message_ai):
     assert api.post("/api/messages", json={"contract_id": draft["id"], "body": MESSAGE}).status_code == 409
 
 
-def test_ai_failure_retries_once_then_gives_up(api, message_ai, contract):
-    message_ai.failures = 1
-    assert post_message(api, contract).status_code == 201
-    assert message_ai.calls == 2
-
-    message_ai.calls, message_ai.failures = 0, 5
+def test_ai_failure_gives_a_readable_error_and_saves_nothing(api, message_ai, contract):
+    message_ai.failures = 5
     response = post_message(api, contract)
     assert response.status_code == 502
-    assert message_ai.calls == 2
-    assert len(api.get(f"/api/messages?contract_id={contract.id}").json()) == 1
+    assert "AI service" in response.json()["detail"]
+    assert message_ai.calls == 1  # no extra call: ask_json retries itself and credit is limited
+    assert api.get(f"/api/messages?contract_id={contract.id}").json() == []
 
 
 def test_approving_milestone_reached_sends_the_invoice(api, message_ai, contract, fake_paypal):

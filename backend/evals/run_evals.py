@@ -1,6 +1,6 @@
-"""Scores the AI on 10 contracts and 15 client messages. Uses the real Claude API.
+"""Scores the AI on 10 contracts and 15 client messages. Uses the real AI (OpenRouter), about 25 calls.
 
-Run from the backend folder (needs ANTHROPIC_API_KEY in .env):
+Run from the backend folder (needs OPENROUTER_API_KEY in .env):
     .venv/bin/python evals/run_evals.py              # everything
     .venv/bin/python evals/run_evals.py contracts    # contracts only
     .venv/bin/python evals/run_evals.py messages     # messages only

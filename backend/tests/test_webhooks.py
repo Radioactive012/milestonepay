@@ -21,3 +21,15 @@ def test_valid_event_is_accepted_once(api):
 
 def test_event_without_id_is_ignored(api):
     assert api.post("/webhooks/paypal", json={"event_type": "X"}).json() == {"status": "ignored"}
+
+
+def test_paypal_failure_during_check_returns_502_not_a_crash(api, fake_paypal):
+    from app.paypal.client import PayPalError
+
+    def broken(headers, event):
+        raise PayPalError(401, "PayPal sandbox keys are missing.")
+
+    fake_paypal.verify_webhook = broken
+    response = api.post("/webhooks/paypal", json={"id": "E1"})
+    assert response.status_code == 502
+    assert "keys are missing" in response.json()["detail"]

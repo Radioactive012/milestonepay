@@ -22,6 +22,8 @@ avoid jargon.
 | Area | Owner |
 |---|---|
 | `backend/app/paypal/`, `backend/app/billing.py`, `backend/app/milestones.py` | A |
+| `backend/app/api/portal.py`, `backend/app/files.py` | A |
+| `backend/app/jobs.py`, `backend/app/clock.py`, `backend/app/api/demo.py` | A |
 | `backend/scripts/`, deploy files, client portal screens (`frontend/src/pages/portal/`) | A |
 | `backend/app/ai/`, `backend/app/api/messages.py`, `backend/evals/`, `frontend/` (except the portal) | B |
 | `backend/app/models.py`, `backend/app/db.py`, `backend/app/api/`, `requirements.txt`, `CLAUDE.md`, `README.md` | Shared |
@@ -42,7 +44,20 @@ can check with their teammate first. Never delete or rewrite the other person's 
   (`user`, `client`, `system`, `ai`, `paypal`).
 - Quotes the AI returns must exist word for word in the source text
   (`app.ai.guardrails.quote_in_source`).
-- Use `claude-opus-5-5` unless `ANTHROPIC_MODEL` says otherwise.
+- All AI calls go through `app.ai.llm` (OpenRouter). The model is `AI_MODEL` in `.env`
+  (default `deepseek/deepseek-v4.1-flash-1017`). Don't add another AI library or provider.
+
+## Saving AI credit (the whole team has about $2)
+
+- Tests and everyday development use the pretend AI (`FakeAI` in `backend/tests/conftest.py`).
+  Never call the real AI from tests.
+- Only call the real AI when the user asks for it, and say first how many calls it will make.
+- Running the eval set costs real credit. Ask before every run, and while tuning a prompt run
+  one or two cases, not the whole set.
+- No loops or extra retries around AI calls. `ask_json` already retries once; that's the limit.
+- Keep prompts short. Don't send the same document twice when a saved result can be reused.
+- Don't raise `max_tokens` or switch to a pricier model without asking the user.
+- Before the app goes online, AI routes need a request limit so visitors can't drain the credit.
 
 ## Daily git routine
 
@@ -97,7 +112,17 @@ Secrets live in `.env` at the project root (copy `.env.example`). Each person ke
 - `docs/TASKS.md`: schedule, task split, what's done, and notes for each other
 - `backend/app/main.py`: the FastAPI app
 - `backend/app/api/contracts.py`: contract, milestone and invoice routes
-- `backend/app/ai/`: Claude prompt, output schema, code checks on the AI's answer
+- `backend/app/api/portal.py`: file upload, and the client portal (private link per
+  contract: view, approve a milestone, watermarked previews, downloads locked until paid)
+- `backend/app/files.py`: file name cleaning and watermarked previews
+- `backend/app/jobs.py`: daily jobs (dated invoices a week early, overdue marking, PayPal
+  reminders at -3, 0, +3, +7, +14 days). Runs hourly in the background and on demand.
+- `backend/app/clock.py`: the app's "today" (real date plus the demo clock offset). Use
+  `clock.today(session)` instead of `date.today()` anywhere dates matter.
+- `backend/app/api/demo.py`: demo clock and "run jobs now" routes (off when `DEMO_MODE=false`)
+- `backend/app/ai/llm.py`: the only connection to the AI (OpenRouter, strict JSON answers)
+- `backend/app/ai/`: contract prompt (`contract.py`, PDFs read locally for free), output
+  schema, code checks on the AI's answer
 - `backend/app/billing.py`: creating, sending and syncing PayPal invoices
 - `backend/app/paypal/`: PayPal API client, invoice helpers, webhook route
 - `backend/tests/`: tests use a pretend PayPal and a pretend AI (see `conftest.py`)

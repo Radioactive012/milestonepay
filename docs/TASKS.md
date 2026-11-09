@@ -18,6 +18,35 @@ Newest at the top. One line per push: who, what changed, anything the other must
   `record_revision`. Heads-up on a shared file: one line added to `backend/app/main.py` to
   include the router. `ai/messages.py` now uses your `round_to_quarter_hour`. Also in
   pull request #1: the new project page (`frontend/`) and the evals (`backend/evals/`).
+  Merged main into b-frontend: `ai/messages.py` now uses `get_llm().ask_json` and `AIError`.
+
+- Vinayak: **the AI now runs on OpenRouter with DeepSeek V4.1 Flash 1017**, not Anthropic.
+  The `anthropic` package is gone. Every AI call goes through `app.ai.llm`:
+  `get_llm().ask_json(system=..., content=..., output=YourPydanticModel)` returns a checked
+  answer or raises `AIError` with a readable message. Settings are `OPENROUTER_API_KEY` and
+  `AI_MODEL` (the old `ANTHROPIC_*` settings no longer exist). PDFs are read locally for free.
+  Avirup: please switch `messages.py` to `ask_json` and catch `AIError` before merging PR #1,
+  then `pip install -r requirements.txt`. Read "Saving AI credit" in `CLAUDE.md`: we have about $2.
+
+- Vinayak: reminders and demo clock are on main. Daily jobs (`backend/app/jobs.py`) send
+  dated milestones' invoices 7 days early, mark late invoices overdue, and send PayPal
+  reminders at -3, 0, +3, +7 and +14 days (one per stage; a jump sends only the latest).
+  They run hourly and on demand. Demo routes: `GET/POST /api/demo/clock`
+  (`{"offset_days": 7}`), `POST /api/demo/run-jobs`. Invoices now show `reminders`.
+  Avirup: for dates, use `clock.today(session)`, not `date.today()`. Delete
+  `backend/milestonepay.db` after pulling (new tables). Reminder text is a template for
+  now; an AI-written version could go in `reminder_text()` later if there's time.
+
+- Vinayak: client portal backend is on main (`backend/app/api/portal.py`). Routes:
+  `POST /api/milestones/{id}/files` (upload), `GET /api/files/{id}` (freelancer download),
+  `GET /api/portal/{token}` (client view), `POST /api/portal/{token}/milestones/{id}/approve`
+  (client approves; event milestones get invoiced), `GET /api/portal/{token}/files/{id}/preview`
+  (watermarked image), `GET /api/portal/{token}/files/{id}` (402 until paid).
+  `GET /api/contracts/{id}` now lists `files` per milestone. Delete `backend/milestonepay.db`
+  after pulling (new `deliverable` table) and run `pip install -r requirements.txt` (Pillow).
+  Also fixed: missing Anthropic or PayPal keys now give a clear message instead of a crash.
+  Avirup: `ClaudeMessageAI` likely has the same missing-key crash; see `ClaudeContractAI.__init__`.
+
 - Vinayak: added `message`, `suggestion`, `change_order` tables, `contract.hourly_rate`
   (default 40, `PATCH /api/contracts/{id}`), `milestone.revisions_used`,
   `approve_change_order()` and `record_revision()`. Avirup: your routes can call these
@@ -59,10 +88,17 @@ extra only come back if the core works by Wednesday night. AG Grid and Render st
 - Routes: create contract, edit draft milestone, approve with deposit (deposit
   invoice goes out through PayPal), send milestone invoice, refresh from PayPal
 - PayPal "paid" webhook marks the invoice and milestone paid, stored so repeats are ignored
-- 36 passing tests, all with a pretend PayPal and a pretend AI
+- Message, suggestion and change order tables; hourly rate; change orders billed as
+  their own milestone; revision counting
+- Client portal backend: private link per contract, client approval, file upload,
+  watermarked previews, downloads locked until the PayPal invoice is paid
+- Clear errors when AI or PayPal keys are missing
+- AI runs on OpenRouter (DeepSeek V4.1 Flash 1017) through one shared connection, `app.ai.llm`
+- Daily jobs: dated invoices, overdue marking, PayPal reminders; demo clock and run-jobs routes
+- 95 passing tests, all with a pretend PayPal and a pretend AI
 
 ## Not done yet
 
-- Not yet run against real PayPal sandbox or the real Claude API (needs keys)
-- Client messages and scope-creep detection, client portal, file unlock,
-  reminders, frontend, deploy
+- Not yet run against real PayPal sandbox or the real AI (needs keys in `.env`)
+- Message and suggestion routes (Avirup), frontend screens (Avirup's PR #1, portal page),
+  deploy to Render + Neon

@@ -1,4 +1,4 @@
-from app.ai.contract import ContractAIError
+from app.ai.llm import AIError
 from tests.conftest import CONTRACT_TEXT
 
 
@@ -37,7 +37,7 @@ def test_contract_needs_text_or_file_and_an_email(api):
 
 def test_ai_failure_returns_readable_error(api, fake_ai):
     def fail(**kwargs):
-        raise ContractAIError("The AI is rate limited right now. Try again in a minute.")
+        raise AIError("The AI is rate limited right now. Try again in a minute.")
 
     fake_ai.analyse = fail
     response = create(api)

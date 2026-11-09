@@ -5,7 +5,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from app import audit
+from app import audit, clock
 from app.milestones import CENT, TRANSITIONS, InvalidTransition, move
 from app.models import ChangeOrder, Contract, Invoice, Milestone, utcnow
 from app.paypal.client import PayPalClient
@@ -44,7 +44,7 @@ def invoice_milestone(
     contract = session.get(Contract, milestone.contract_id)
     invoice = existing
     if invoice is None:
-        today = today or date.today()
+        today = today or clock.today(session)
         number = f"MP-{contract.id:04d}-{milestone.position:02d}-{secrets.token_hex(2).upper()}"
         due = _due_date(milestone, contract, today)
         paypal_id = create_invoice(
