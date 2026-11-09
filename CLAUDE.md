@@ -23,6 +23,7 @@ avoid jargon.
 |---|---|
 | `backend/app/paypal/`, `backend/app/billing.py`, `backend/app/milestones.py` | A |
 | `backend/app/api/portal.py`, `backend/app/files.py` | A |
+| `backend/app/jobs.py`, `backend/app/clock.py`, `backend/app/api/demo.py` | A |
 | `backend/scripts/`, deploy files, client portal screens (`frontend/src/pages/portal/`) | A |
 | `backend/app/ai/`, `backend/app/api/messages.py`, `backend/evals/`, `frontend/` (except the portal) | B |
 | `backend/app/models.py`, `backend/app/db.py`, `backend/app/api/`, `requirements.txt`, `CLAUDE.md`, `README.md` | Shared |
@@ -101,6 +102,11 @@ Secrets live in `.env` at the project root (copy `.env.example`). Each person ke
 - `backend/app/api/portal.py`: file upload, and the client portal (private link per
   contract: view, approve a milestone, watermarked previews, downloads locked until paid)
 - `backend/app/files.py`: file name cleaning and watermarked previews
+- `backend/app/jobs.py`: daily jobs (dated invoices a week early, overdue marking, PayPal
+  reminders at -3, 0, +3, +7, +14 days). Runs hourly in the background and on demand.
+- `backend/app/clock.py`: the app's "today" (real date plus the demo clock offset). Use
+  `clock.today(session)` instead of `date.today()` anywhere dates matter.
+- `backend/app/api/demo.py`: demo clock and "run jobs now" routes (off when `DEMO_MODE=false`)
 - `backend/app/ai/`: Claude prompt, output schema, code checks on the AI's answer
 - `backend/app/billing.py`: creating, sending and syncing PayPal invoices
 - `backend/app/paypal/`: PayPal API client, invoice helpers, webhook route

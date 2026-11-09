@@ -15,7 +15,7 @@ from app.api.portal import file_list
 from app.billing import invoice_milestone, sync_from_paypal
 from app.db import get_session
 from app.milestones import apply_deposit, move
-from app.models import DEFAULT_HOURLY_RATE, AuditEntry, ChangeOrder, Contract, Invoice, Milestone
+from app.models import DEFAULT_HOURLY_RATE, AuditEntry, ChangeOrder, Contract, Invoice, Milestone, Reminder
 from app.paypal.client import PayPalClient, PayPalError, get_paypal_client
 
 router = APIRouter(prefix="/api")
@@ -38,6 +38,11 @@ def contract_out(session: Session, contract: Contract) -> dict:
         .order_by(Invoice.created_at)
     ).all()
     latest_invoice = {inv.milestone_id: inv for inv in invoices}
+    reminders: dict[int, list[dict]] = {}
+    for r in session.exec(
+        select(Reminder).where(Reminder.invoice_id.in_([inv.id for inv in invoices])).order_by(Reminder.id)
+    ).all():
+        reminders.setdefault(r.invoice_id, []).append({"stage": r.stage, "subject": r.subject, "sent_at": r.sent_at})
     files = file_list(session, [m.id for m in milestones], {m.id for m in milestones if m.status == "paid"})
     entries = session.exec(
         select(AuditEntry).where(AuditEntry.contract_id == contract.id).order_by(AuditEntry.id)
@@ -74,7 +79,7 @@ def contract_out(session: Session, contract: Contract) -> dict:
                 "revisions_used": m.revisions_used,
                 "is_deposit": m.is_deposit,
                 "status": m.status,
-                "invoice": _invoice_out(latest_invoice.get(m.id)),
+                "invoice": _invoice_out(latest_invoice.get(m.id), reminders),
                 "files": files.get(m.id, []),
             }
             for m in milestones
@@ -102,7 +107,7 @@ def contract_out(session: Session, contract: Contract) -> dict:
     }
 
 
-def _invoice_out(invoice: Invoice | None) -> dict | None:
+def _invoice_out(invoice: Invoice | None, reminders: dict[int, list[dict]]) -> dict | None:
     if invoice is None:
         return None
     return {
@@ -114,6 +119,7 @@ def _invoice_out(invoice: Invoice | None) -> dict | None:
         "payer_url": invoice.payer_url,
         "due_date": invoice.due_date,
         "paid_at": invoice.paid_at,
+        "reminders": reminders.get(invoice.id, []),
     }
 
 

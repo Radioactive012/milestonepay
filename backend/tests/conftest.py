@@ -97,6 +97,8 @@ class FakePayPal:
         self.calls: list[tuple] = []
         self.webhooks_valid = True
         self.fail_create = False
+        self.fail_remind = False
+        self.reminders: list[tuple[str, dict]] = []
 
     def request(self, method, path, json=None, **kwargs):
         from app.paypal.client import PayPalError
@@ -113,9 +115,14 @@ class FakePayPal:
                 "detail": {"metadata": {"recipient_view_url": f"https://pay.example/{invoice_id}"}},
             }
             return {"href": f"https://api-m.sandbox.paypal.com/v2/invoicing/invoices/{invoice_id}"}
-        match = re.fullmatch(r"/v2/invoicing/invoices/([^/]+)(/send)?", path)
-        if match and match.group(2):
+        match = re.fullmatch(r"/v2/invoicing/invoices/([^/]+)(/send|/remind)?", path)
+        if match and match.group(2) == "/send":
             self.invoices[match.group(1)]["status"] = "SENT"
+            return {}
+        if match and match.group(2) == "/remind":
+            if self.fail_remind:
+                raise PayPalError(500, "sandbox is down")
+            self.reminders.append((match.group(1), json))
             return {}
         if match and method == "GET":
             return self.invoices[match.group(1)]

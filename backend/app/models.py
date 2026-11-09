@@ -2,7 +2,7 @@ import secrets
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import Column, LargeBinary
+from sqlalchemy import Column, LargeBinary, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -114,6 +114,25 @@ class Deliverable(SQLModel, table=True):
     # The full file is only served once the milestone is paid.
     preview: bytes | None = Field(default=None, sa_column=Column(LargeBinary, nullable=True))
     uploaded_at: datetime = Field(default_factory=utcnow)
+
+
+class Reminder(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("invoice_id", "stage"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    invoice_id: int = Field(foreign_key="invoice.id", index=True)
+    # days relative to the due date: -3, 0, 3, 7 or 14
+    stage: int
+    subject: str
+    note: str
+    sent_at: datetime = Field(default_factory=utcnow)
+
+
+class AppState(SQLModel, table=True):
+    # a single row (id 1) for app-wide settings that change at runtime
+    id: int = Field(default=1, primary_key=True)
+    # the demo clock: how many days ahead of the real date the app pretends it is
+    clock_offset_days: int = 0
 
 
 class WebhookEvent(SQLModel, table=True):

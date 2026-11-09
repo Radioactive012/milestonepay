@@ -12,6 +12,15 @@ a database table or an API route needs both people.
 
 Newest at the top. One line per push: who, what changed, anything the other must do.
 
+- Vinayak: reminders and demo clock are on main. Daily jobs (`backend/app/jobs.py`) send
+  dated milestones' invoices 7 days early, mark late invoices overdue, and send PayPal
+  reminders at -3, 0, +3, +7 and +14 days (one per stage; a jump sends only the latest).
+  They run hourly and on demand. Demo routes: `GET/POST /api/demo/clock`
+  (`{"offset_days": 7}`), `POST /api/demo/run-jobs`. Invoices now show `reminders`.
+  Avirup: for dates, use `clock.today(session)`, not `date.today()`. Delete
+  `backend/milestonepay.db` after pulling (new tables). Reminder text is a template for
+  now; an AI-written version could go in `reminder_text()` later if there's time.
+
 - Vinayak: client portal backend is on main (`backend/app/api/portal.py`). Routes:
   `POST /api/milestones/{id}/files` (upload), `GET /api/files/{id}` (freelancer download),
   `GET /api/portal/{token}` (client view), `POST /api/portal/{token}/milestones/{id}/approve`
@@ -68,10 +77,11 @@ extra only come back if the core works by Wednesday night. AG Grid and Render st
 - Client portal backend: private link per contract, client approval, file upload,
   watermarked previews, downloads locked until the PayPal invoice is paid
 - Clear errors when Anthropic or PayPal keys are missing
-- 71 passing tests, all with a pretend PayPal and a pretend AI
+- Daily jobs: dated invoices, overdue marking, PayPal reminders; demo clock and run-jobs routes
+- 82 passing tests, all with a pretend PayPal and a pretend AI
 
 ## Not done yet
 
 - Not yet run against real PayPal sandbox or the real Claude API (needs keys in `.env`)
 - Message and suggestion routes (Avirup), frontend screens (Avirup's PR #1, portal page),
-  reminders and demo clock, deploy to Render + Neon
+  deploy to Render + Neon
