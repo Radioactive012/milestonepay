@@ -137,11 +137,26 @@ def test_verify_webhook_sends_headers_and_webhook_id(status, expected):
         "paypal-transmission-sig": "sig",
         "paypal-transmission-time": "2026-11-10T10:00:00Z",
     }
-    result = make_client(handler).verify_webhook(headers, {"id": "WH-EVT-1"})
+    result = make_client(handler).verify_webhook(headers, b'{"id": "WH-EVT-1"}')
     assert result is expected
     assert sent["webhook_id"] == "WH-1"
     assert sent["transmission_id"] == "t-1"
     assert sent["webhook_event"] == {"id": "WH-EVT-1"}
+
+
+def test_verify_webhook_sends_the_event_exactly_as_received():
+    raw = b'{"id":"WH-2",  "summary":"Caf\u00e9 paid", "resource":{"amount":{"value":"10.00"},"n":1.50}}'
+    sent = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v1/oauth2/token":
+            return httpx.Response(200, json={"access_token": "tok", "expires_in": 3600})
+        sent["body"] = request.content
+        return httpx.Response(200, json={"verification_status": "SUCCESS"})
+
+    assert make_client(handler).verify_webhook({}, raw) is True
+    assert raw in sent["body"]  # spacing, escapes and 1.50 untouched
+    assert json.loads(sent["body"])["webhook_event"]["summary"] == "Café paid"
 
 
 def test_missing_keys_give_a_clear_error_without_calling_paypal():

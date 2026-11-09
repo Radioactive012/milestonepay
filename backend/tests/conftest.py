@@ -130,7 +130,7 @@ class FakePayPal:
             return self.invoices[match.group(1)]
         raise AssertionError(f"Unexpected PayPal call {method} {path}")
 
-    def verify_webhook(self, headers, event):
+    def verify_webhook(self, headers, raw_body):
         return self.webhooks_valid
 
 

@@ -73,19 +73,27 @@ class PayPalClient:
         self._raise_for_error(response)
         return response.json() if response.content else {}
 
-    def verify_webhook(self, headers: dict[str, str], event: dict) -> bool:
+    def verify_webhook(self, headers: dict[str, str], raw_body: bytes) -> bool:
+        """Ask PayPal whether an event really came from PayPal.
+
+        The event goes back exactly as it arrived. PayPal checks a signature over the original
+        text, so re-writing it (key order, spacing, how accents are escaped) can make a real
+        event fail the check.
+        """
+        fields = {
+            "auth_algo": headers.get("paypal-auth-algo", ""),
+            "cert_url": headers.get("paypal-cert-url", ""),
+            "transmission_id": headers.get("paypal-transmission-id", ""),
+            "transmission_sig": headers.get("paypal-transmission-sig", ""),
+            "transmission_time": headers.get("paypal-transmission-time", ""),
+            "webhook_id": self._settings.paypal_webhook_id,
+        }
+        body = json.dumps(fields)[:-1].encode() + b', "webhook_event": ' + raw_body.strip() + b"}"
         result = self.request(
             "POST",
             "/v1/notifications/verify-webhook-signature",
-            json={
-                "auth_algo": headers.get("paypal-auth-algo", ""),
-                "cert_url": headers.get("paypal-cert-url", ""),
-                "transmission_id": headers.get("paypal-transmission-id", ""),
-                "transmission_sig": headers.get("paypal-transmission-sig", ""),
-                "transmission_time": headers.get("paypal-transmission-time", ""),
-                "webhook_id": self._settings.paypal_webhook_id,
-                "webhook_event": event,
-            },
+            content=body,
+            headers={"Content-Type": "application/json"},
         )
         return result.get("verification_status") == "SUCCESS"
 

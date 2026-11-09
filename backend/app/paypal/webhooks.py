@@ -64,7 +64,7 @@ async def receive_paypal_event(
         raise HTTPException(status_code=400, detail="Body is not valid JSON")
 
     headers = {name.lower(): value for name, value in request.headers.items()}
-    if not await run_in_threadpool(client.verify_webhook, headers, event):
+    if not await run_in_threadpool(client.verify_webhook, headers, body):
         raise HTTPException(status_code=400, detail="Webhook signature check failed")
 
     return {"status": await run_in_threadpool(handle_event, session, event)}
