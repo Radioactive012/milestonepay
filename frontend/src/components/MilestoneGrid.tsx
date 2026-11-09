@@ -1,4 +1,4 @@
-import type { CellValueChangedEvent, ColDef } from "ag-grid-community";
+import type { CellClassParams, CellClassRules, CellValueChangedEvent, ColDef } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import { useMemo } from "react";
 import type { Contract, Milestone, MilestoneChanges } from "../types";
@@ -43,7 +43,7 @@ export default function MilestoneGrid({ contract, onEdit, gridKey }: Props) {
           return true;
         },
         valueFormatter: (p) => (p.value == null ? "" : money.format(p.value)),
-        cellClassRules: { "font-semibold": (p) => !!p.data?._total },
+        cellClassRules: { "font-semibold": (p: CellClassParams<Row>) => !!p.data?._total } as CellClassRules<Row>,
       },
       {
         headerName: "Paid when",
@@ -63,8 +63,8 @@ export default function MilestoneGrid({ contract, onEdit, gridKey }: Props) {
         valueFormatter: (p) => p.value ?? "",
         // Checks: a date-based milestone needs a real date before it can be approved.
         cellClassRules: {
-          "bg-red-100": (p) => !!p.data && !p.data._total && p.data.trigger === "date" && !p.data.due_date,
-        },
+          "bg-red-100": (p: CellClassParams<Row>) => !!p.data && !p.data._total && p.data.trigger === "date" && !p.data.due_date,
+        } as CellClassRules<Row>,
       },
       { headerName: "What triggers it", field: "trigger_description", flex: 3, minWidth: 200, editable: (p) => editable(p.data) },
       { headerName: "Status", field: "status", width: 140, editable: false },
@@ -74,7 +74,7 @@ export default function MilestoneGrid({ contract, onEdit, gridKey }: Props) {
 
   const total = contract.milestones.reduce((sum, m) => sum + Number(m.amount ?? 0), 0);
   const totalRow: Row = {
-    id: -1, position: 0, title: "Total", amount: total.toFixed(2), trigger: "", trigger_description: null,
+    id: -1, revisions_used: 0, position: 0, title: "Total", amount: total.toFixed(2), trigger: "", trigger_description: null,
     due_date: null, revision_limit: null, is_deposit: false, status: "", invoice: null, _total: true,
   };
 
