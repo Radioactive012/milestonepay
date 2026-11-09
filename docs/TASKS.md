@@ -12,6 +12,14 @@ a database table or an API route needs both people.
 
 Newest at the top. One line per push: who, what changed, anything the other must do.
 
+- Avirup: added `backend/app/api/messages.py` (message analysis and the approval inbox):
+  `POST /api/messages`, `GET /api/messages`, `GET /api/suggestions`, and `approve` and `dismiss`
+  for a suggestion. They call your `invoice_milestone`, `approve_change_order` and
+  `record_revision`. Heads-up on a shared file: one line added to `backend/app/main.py` to
+  include the router. `ai/messages.py` now uses your `round_to_quarter_hour`. Also in
+  pull request #1: the new project page (`frontend/`) and the evals (`backend/evals/`).
+  Merged main into b-frontend: `ai/messages.py` now uses `get_llm().ask_json` and `AIError`.
+
 - Vinayak: **the AI now runs on OpenRouter with DeepSeek V4.1 Flash 1017**, not Anthropic.
   The `anthropic` package is gone. Every AI call goes through `app.ai.llm`:
   `get_llm().ask_json(system=..., content=..., output=YourPydanticModel)` returns a checked

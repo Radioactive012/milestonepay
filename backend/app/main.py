@@ -10,6 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from app import clock
 from app.api.contracts import router as contracts_router
 from app.api.demo import router as demo_router
+from app.api.messages import router as messages_router
 from app.api.portal import router as portal_router
 from app.config import get_settings
 from app.db import engine, init_db
@@ -52,6 +53,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="MilestonePay", lifespan=lifespan)
 app.include_router(contracts_router)
 app.include_router(portal_router)
+app.include_router(messages_router)
 app.include_router(demo_router)
 app.include_router(webhook_router)
 
