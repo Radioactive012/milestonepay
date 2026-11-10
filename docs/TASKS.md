@@ -12,6 +12,10 @@ a database table or an API route needs both people.
 
 Newest at the top. One line per push: who, what changed, anything the other must do.
 
+- Vinayak: `temperature: 0` on every AI call in `ask_json` (Avirup's request, for consistent
+  evals and demo; DeepSeek on OpenRouter supports it). The one retry now tells the AI what was
+  wrong with its first answer, since at temperature 0 a plain repeat gets the same answer.
+
 - Vinayak: tests now ignore `.env` and real keys completely (`MILESTONEPAY_ENV_FILE=""` set in
   `tests/conftest.py`), so a filled-in `.env` can't change results or spend AI credit.
 

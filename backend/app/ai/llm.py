@@ -124,6 +124,8 @@ class OpenRouterLLM:
         body = {
             "model": self._model,
             "max_tokens": max_tokens,
+            # 0 = the most consistent answers: the same document reads the same way every time
+            "temperature": 0,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}],
             "response_format": {
                 "type": "json_schema",
@@ -140,10 +142,18 @@ class OpenRouterLLM:
                 raise AIError("The AI couldn't finish its answer. Try a shorter document.")
             if choice.get("finish_reason") == "content_filter":
                 raise AIError("The AI declined to read this document.")
+            answer = choice["message"].get("content") or ""
             try:
-                return output.model_validate_json(choice["message"].get("content") or "")
-            except ValidationError:
-                continue
+                return output.model_validate_json(answer)
+            except ValidationError as error:
+                # at temperature 0 the same question gets the same answer, so the retry says what was wrong
+                body = body | {
+                    "messages": body["messages"] + [
+                        {"role": "assistant", "content": answer[:4000]},
+                        {"role": "user", "content": "That answer didn't match the required format: "
+                         f"{str(error)[:500]}\nReply again with only the corrected JSON."},
+                    ]
+                }
         raise AIError("The AI's answer wasn't in the expected format. Try again.")
 
 

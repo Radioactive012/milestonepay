@@ -100,6 +100,7 @@ def test_request_uses_the_model_and_strict_json(monkeypatch):
     assert body["response_format"]["json_schema"]["strict"] is True
     assert body["provider"] == {"require_parameters": True}
     assert body["max_tokens"] <= 8000
+    assert body["temperature"] == 0
 
 
 def test_bad_shape_is_retried_once_then_fails():
@@ -212,3 +213,16 @@ def test_zero_limit_turns_the_ai_off(engine):
     llm = OpenRouterLLM(settings(), transport=httpx.MockTransport(lambda r: reply(VALID)), limit=DailyAILimit(engine, 0))
     with pytest.raises(AIError):
         llm.ask_json(system="s", content="c", output=ContractAnalysis)
+
+
+def test_retry_tells_the_ai_what_was_wrong():
+    captured = []
+    result = llm_with(reply('{"not": "valid"}'), reply(VALID), captured=captured).ask_json(
+        system="s", content="c", output=ContractAnalysis
+    )
+    assert result.client_name
+    first, second = (json.loads(r.content) for r in captured)
+    assert len(first["messages"]) == 2
+    assert second["messages"][2] == {"role": "assistant", "content": '{"not": "valid"}'}
+    assert "didn't match the required format" in second["messages"][3]["content"]
+    assert second["temperature"] == 0
