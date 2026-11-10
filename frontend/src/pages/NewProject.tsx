@@ -7,6 +7,9 @@ import { DEMO_CONTRACT_TEXT } from "../fixtures";
 import { sendInvoice } from "./portal/portalApi";
 import type { Contract, MilestoneChanges } from "../types";
 
+const formatMoney = (amount: string | null, currency: string) =>
+  new Intl.NumberFormat(undefined, { style: "currency", currency: currency || "USD" }).format(Number(amount ?? 0));
+
 type Step = "input" | "analysing" | "review" | "approving" | "approved";
 const DEPOSITS = [0, 25, 30, 50];
 
@@ -213,7 +216,8 @@ export default function NewProject({ draftId, onApproved, onOpenProject }: Props
             <MilestoneGrid contract={contract} onEdit={saveEdit} gridKey={gridKey} />
             {contract.stated_total && contract.milestone_total !== contract.stated_total && (
               <p className="text-sm text-amber-800">
-                The milestones add up to {contract.milestone_total}, but the contract total is {contract.stated_total}.
+                The milestones add up to {formatMoney(contract.milestone_total, contract.currency)}, but the contract total is{" "}
+                {formatMoney(contract.stated_total, contract.currency)}.
               </p>
             )}
           </section>
@@ -242,8 +246,8 @@ export default function NewProject({ draftId, onApproved, onOpenProject }: Props
               {depositMilestone?.invoice ? (
                 <>
                   <p className="text-sm text-emerald-900">
-                    Deposit invoice {depositMilestone.invoice.number} for {depositMilestone.invoice.amount} {contract.currency} is{" "}
-                    <strong>{depositMilestone.invoice.status}</strong>.
+                    Deposit invoice {depositMilestone.invoice.number} for {formatMoney(depositMilestone.invoice.amount, contract.currency)} is{" "}
+                    <strong>{depositMilestone.invoice.status.toLowerCase()}</strong>.
                   </p>
                   <div className="flex flex-wrap gap-3">
                     {depositMilestone.invoice.payer_url && (

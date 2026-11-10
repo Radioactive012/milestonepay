@@ -1,6 +1,6 @@
 import type { CellClassParams, CellClassRules, CellValueChangedEvent, ColDef } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Contract, Milestone, MilestoneChanges } from "../types";
 
 interface Props {
@@ -17,6 +17,7 @@ export default function MilestoneGrid({ contract, onEdit, gridKey }: Props) {
     () => new Intl.NumberFormat(undefined, { style: "currency", currency: contract.currency || "USD" }),
     [contract.currency],
   );
+  const [invalid, setInvalid] = useState<string | null>(null);
   const editable = (m?: Row) => !!m && !m._total && m.status === "draft" && !m.is_deposit;
 
   const columns = useMemo<ColDef<Row>[]>(
@@ -38,7 +39,11 @@ export default function MilestoneGrid({ contract, onEdit, gridKey }: Props) {
         valueGetter: (p) => (p.data?.amount == null ? null : Number(p.data.amount)),
         valueSetter: (p) => {
           const next = Number(p.newValue);
-          if (!Number.isFinite(next) || next <= 0) return false;
+          if (!Number.isFinite(next) || next <= 0) {
+            setInvalid(`"${p.newValue}" isn't a valid amount. Enter a number above zero, for example 800.`);
+            return false;
+          }
+          setInvalid(null);
           p.data.amount = next.toFixed(2);
           return true;
         },
@@ -96,7 +101,8 @@ export default function MilestoneGrid({ contract, onEdit, gridKey }: Props) {
   }
 
   return (
-    <div className="ag-theme-quartz w-full">
+    <div className="ag-theme-quartz w-full space-y-2">
+      {invalid && <p role="alert" className="text-sm text-red-800">{invalid}</p>}
       <AgGridReact<Row>
         key={gridKey}
         rowData={contract.milestones}
