@@ -10,7 +10,7 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Pay
 **sandbox mode only**, so no real money ever moves.
 
 - **Hosted demo:** _add the Render link here after deploying_
-- **Demo video:** _add the YouTube link here_
+- **Demo video:** _add the Drive Link here_
 
 ## The problem
 
