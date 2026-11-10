@@ -76,6 +76,20 @@ class Message(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
 
 
+class ClientNote(SQLModel, table=True):
+    """A message the client wrote on their portal page. It waits for the freelancer; the AI only
+    reads it when the freelancer clicks Analyse, so the public page can't spend AI credit."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    contract_id: int = Field(foreign_key="contract.id", index=True)
+    body: str
+    # waiting, analysed or dismissed
+    status: str = "waiting"
+    # the analysed message in the inbox, once the freelancer analysed it
+    message_id: int | None = Field(default=None, foreign_key="message.id")
+    created_at: datetime = Field(default_factory=utcnow)
+
+
 class Suggestion(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     contract_id: int = Field(foreign_key="contract.id", index=True)

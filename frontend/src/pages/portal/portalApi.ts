@@ -39,7 +39,17 @@ export interface PortalView {
   total: string;
   paid: string;
   outstanding: string;
+  messages?: { body: string; created_at: string }[];
   milestones: PortalMilestone[];
+}
+
+/** A message the client wrote on their page, as the freelancer sees it. */
+export interface ClientNote {
+  id: number;
+  body: string;
+  status: "waiting" | "analysed" | "dismissed";
+  message_id: number | null;
+  created_at: string;
 }
 
 export interface DemoClock {
@@ -95,6 +105,8 @@ const t = encodeURIComponent;
 export const readPortal = (token: string) => call<PortalView>(`/api/portal/${t(token)}`);
 export const approveAsClient = (token: string, milestoneId: number) =>
   call<PortalView>(`/api/portal/${t(token)}/milestones/${milestoneId}/approve`, post());
+export const writeAsClient = (token: string, body: string) =>
+  call<PortalView>(`/api/portal/${t(token)}/messages`, post({ body }));
 export const previewUrl = (token: string, fileId: number) => `/api/portal/${t(token)}/files/${fileId}/preview`;
 export const downloadUrl = (token: string, fileId: number) => `/api/portal/${t(token)}/files/${fileId}`;
 
@@ -109,6 +121,10 @@ export function uploadFile(milestoneId: number, file: File) {
 }
 export const sendInvoice = (milestoneId: number) => call<unknown>(`/api/milestones/${milestoneId}/invoice`, post());
 export const checkPayment = (invoiceId: number) => call<unknown>(`/api/invoices/${invoiceId}/refresh`, post());
+export const listClientNotes = (contractId: number) => call<ClientNote[]>(`/api/contracts/${contractId}/client-messages`);
+export const analyseClientNote = (noteId: number) =>
+  call<{ suggestions: unknown[] }>(`/api/client-messages/${noteId}/analyse`, post());
+export const dismissClientNote = (noteId: number) => call<ClientNote>(`/api/client-messages/${noteId}/dismiss`, post());
 export const ownFileUrl = (fileId: number) => `/api/files/${fileId}`;
 export const portalLink = (token: string) => `${window.location.origin}/portal/${t(token)}`;
 

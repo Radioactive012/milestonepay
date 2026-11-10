@@ -2,6 +2,7 @@ import json
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import defer
 from sqlmodel import Session, select
 
@@ -9,10 +10,14 @@ from app import audit
 from app.billing import invoice_milestone, unlocked_milestone_ids
 from app.db import get_session
 from app.files import MAX_FILE_BYTES, make_preview, safe_filename
-from app.models import AuditEntry, Contract, Deliverable, Invoice, Milestone
+from app.models import AuditEntry, ClientNote, Contract, Deliverable, Invoice, Milestone
 from app.paypal.client import PayPalClient, PayPalError, get_paypal_client
 
 router = APIRouter(prefix="/api")
+
+MAX_CLIENT_NOTE_CHARS = 2000
+# unanswered client messages per project, so the public page can't be used to flood the inbox
+MAX_WAITING_NOTES = 20
 
 
 def file_list(session: Session, milestone_ids: list[int], paid_ids: set[int]) -> dict[int, list[dict]]:
@@ -158,12 +163,16 @@ def portal_view(session: Session, contract: Contract) -> dict:
     paid_ids = unlocked_milestone_ids(session, milestones)
     files = file_list(session, ids, paid_ids)
     approved = client_approved_ids(session, contract)
+    notes = session.exec(
+        select(ClientNote).where(ClientNote.contract_id == contract.id).order_by(ClientNote.id.desc()).limit(10)
+    ).all()
     total = sum((m.amount for m in milestones), Decimal("0.00"))
     paid = sum((m.amount for m in milestones if m.id in paid_ids), Decimal("0.00"))
     return view | {
         "total": str(total),
         "paid": str(paid),
         "outstanding": str(total - paid),
+        "messages": [{"body": n.body, "created_at": n.created_at} for n in notes],
         "milestones": [
             {
                 "id": m.id,
@@ -224,6 +233,34 @@ def client_approves(
                 detail="Your approval is saved, but the invoice couldn't be created just now. "
                 "Please try again in a minute, or let your freelancer know.",
             )
+    return portal_view(session, contract)
+
+
+class ClientNoteIn(BaseModel):
+    body: str = Field(min_length=1, max_length=MAX_CLIENT_NOTE_CHARS)
+
+
+@router.post("/portal/{token}/messages", status_code=201)
+def client_writes(token: str, data: ClientNoteIn, session: Session = Depends(get_session)):
+    """The client sends the freelancer a message. It's only saved; no AI runs here."""
+    contract = _contract_for(session, token)
+    if contract.status != "active":
+        raise HTTPException(status_code=409, detail="Messages open once the project has started.")
+    body = data.body.strip()
+    if not body:
+        raise HTTPException(status_code=422, detail="The message is empty.")
+    waiting = session.exec(
+        select(ClientNote.id).where(ClientNote.contract_id == contract.id, ClientNote.status == "waiting")
+    ).all()
+    if len(waiting) >= MAX_WAITING_NOTES:
+        raise HTTPException(
+            status_code=429, detail="You have several messages waiting already. Your freelancer will get back to you."
+        )
+    note = ClientNote(contract_id=contract.id, body=body)
+    session.add(note)
+    session.flush()
+    audit.record(session, contract.id, "client", "client_message", note_id=note.id, chars=len(body))
+    session.commit()
     return portal_view(session, contract)
 
 

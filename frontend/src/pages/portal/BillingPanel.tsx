@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import type { Contract, Milestone } from "../../types";
 import {
-  PortalError, checkPayment, money, ownFileUrl, portalLink, readableSize, sendInvoice, uploadFile,
-  type PortalFile,
+  PortalError, analyseClientNote, checkPayment, dismissClientNote, listClientNotes, money, ownFileUrl, portalLink,
+  readableSize, sendInvoice, uploadFile, type ClientNote, type PortalFile,
 } from "./portalApi";
 
 type MilestoneWithFiles = Milestone & { files?: PortalFile[] };
@@ -17,7 +17,19 @@ export default function BillingPanel({ contract, onChanged }: { contract: Contra
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [notes, setNotes] = useState<ClientNote[]>([]);
   const link = contract.portal_token ? portalLink(contract.portal_token) : null;
+
+  // messages the client wrote on their page; re-read whenever the project changes
+  useEffect(() => {
+    let current = true;
+    listClientNotes(contract.id)
+      .then((all) => current && setNotes(all.filter((n) => n.status === "waiting")))
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [contract]);
 
   // a success message hides itself, so it doesn't sit there after later changes elsewhere on the page
   useEffect(() => {
@@ -80,6 +92,44 @@ export default function BillingPanel({ contract, onChanged }: { contract: Contra
         </div>
       )}
       {notice && <p role="status" className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p>}
+
+      {notes.length > 0 && (
+        <div className="space-y-2 rounded-lg border border-sky-200 bg-sky-50 p-3">
+          <h3 className="text-sm font-semibold">New messages from your client ({notes.length})</h3>
+          <ul className="space-y-2">
+            {notes.map((n) => (
+              <li key={n.id} className="space-y-2 rounded-lg bg-white p-3 text-sm">
+                <p className="whitespace-pre-wrap">{n.body}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-slate-500">{new Date(n.created_at).toLocaleString()}</span>
+                  <button
+                    disabled={busy}
+                    onClick={() => run(async () => {
+                      const result = await analyseClientNote(n.id);
+                      return result.suggestions.length
+                        ? `Read by the AI. ${result.suggestions.length} suggestion(s) are waiting for you in Messages and approvals.`
+                        : "Read by the AI. Nothing needs your approval.";
+                    })}
+                    className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                  >
+                    Analyse with AI
+                  </button>
+                  <button
+                    disabled={busy}
+                    onClick={() => run(async () => {
+                      await dismissClientNote(n.id);
+                      return "Marked as handled.";
+                    })}
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs disabled:opacity-50"
+                  >
+                    I'll handle it myself
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
         {milestones.map((m) => (

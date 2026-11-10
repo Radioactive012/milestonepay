@@ -12,6 +12,7 @@ a database table or an API route needs both people.
 
 Newest at the top. One line per push: who, what changed, anything the other must do.
 
+- Vinayak: the client page has a "Message your freelancer" box. It only saves the message (no AI on the public page). The freelancer sees it under Billing with "Analyse with AI" (one call, reuses Avirup's create_message as is, sender "client", so suggestions land in the normal inbox) or "I'll handle it myself". New table ClientNote in models.py (created automatically), new file backend/app/api/client_messages.py. Avirup: nothing to change; your messages.py is untouched.
 - Vinayak: the daily jobs now ask PayPal about every unpaid invoice first, so a slow or lost webhook still gets the payment recorded (and a paid invoice is never chased). Avirup's two notes: the AI cap already counts by the real date (new test proves +7 days can't reset it); the Billing panel's green message now hides after 8 seconds and errors get a Dismiss button. Render stays on the free plan (files live in Neon, so nothing is lost when it sleeps).
 - Vinayak: README now has the hosted link and the judge logins (app password, sandbox buyer),
   as the rules require for a password-protected demo. Hosted AI cap lowered to 40/day in

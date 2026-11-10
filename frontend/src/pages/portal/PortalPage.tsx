@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  PortalError, approveAsClient, downloadUrl, money, previewUrl, readPortal, readableSize,
+  PortalError, approveAsClient, downloadUrl, money, previewUrl, readPortal, readableSize, writeAsClient,
   type PortalMilestone, type PortalView,
 } from "./portalApi";
 
@@ -160,6 +160,8 @@ export default function PortalPage({ token }: { token: string }) {
                     ))}
                   </ul>
                 </section>
+
+                <MessageBox token={token} sent={view.messages ?? []} onSent={setView} />
               </>
             )}
 
@@ -170,6 +172,78 @@ export default function PortalPage({ token }: { token: string }) {
         )}
       </main>
     </div>
+  );
+}
+
+/** The client writes to the freelancer. It's only saved; the freelancer decides what to do with it. */
+function MessageBox({ token, sent, onSent }: {
+  token: string;
+  sent: { body: string; created_at: string }[];
+  onSent: (view: PortalView) => void;
+}) {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  async function send() {
+    setBusy(true);
+    setError(null);
+    setDone(false);
+    try {
+      onSent(await writeAsClient(token, text.trim()));
+      setText("");
+      setDone(true);
+    } catch (e) {
+      setError(e instanceof PortalError ? e.message : "Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
+      <div>
+        <h2 className="text-lg font-semibold">Message your freelancer</h2>
+        <p className="text-sm text-slate-600">Feedback, approvals or new requests. Your freelancer reads every message.</p>
+      </div>
+      <textarea
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          setDone(false);
+        }}
+        maxLength={2000}
+        rows={4}
+        placeholder="For example: The sketches look great! Could you also design a matching menu?"
+        aria-label="Your message"
+        className="w-full rounded-lg border border-slate-300 p-3 text-sm"
+      />
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          onClick={send}
+          disabled={busy || !text.trim()}
+          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+        >
+          {busy ? "Sending…" : "Send message"}
+        </button>
+        {done && <span role="status" className="text-sm text-emerald-700">Sent. Your freelancer will get back to you.</span>}
+      </div>
+      {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
+      {sent.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium">Your messages</h3>
+          <ul className="space-y-2">
+            {sent.map((m, i) => (
+              <li key={i} className="rounded-lg bg-slate-50 p-3 text-sm">
+                <p className="whitespace-pre-wrap">{m.body}</p>
+                <p className="mt-1 text-xs text-slate-500">{new Date(m.created_at).toLocaleString()}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
   );
 }
 
