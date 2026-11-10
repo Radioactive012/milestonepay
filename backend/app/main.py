@@ -8,12 +8,14 @@ from sqlmodel import Session
 from starlette.concurrency import run_in_threadpool
 
 from app import clock
+from app.access import add_password_check
 from app.api.contracts import router as contracts_router
 from app.api.demo import router as demo_router
 from app.api.messages import router as messages_router
 from app.api.portal import router as portal_router
 from app.config import get_settings
 from app.db import engine, init_db
+from app.frontend import mount_frontend
 from app.jobs import run_daily_jobs
 from app.milestones import InvalidTransition
 from app.paypal.client import PayPalError, get_paypal_client
@@ -51,6 +53,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="MilestonePay", lifespan=lifespan)
+add_password_check(app)
 app.include_router(contracts_router)
 app.include_router(portal_router)
 app.include_router(messages_router)
@@ -72,3 +75,7 @@ def paypal_error(request: Request, error: PayPalError):
 @app.get("/health")
 def health():
     return {"status": "ok", "paypal_environment": get_settings().paypal_environment}
+
+
+# last, so the API routes above always win
+mount_frontend(app)

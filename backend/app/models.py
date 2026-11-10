@@ -133,6 +133,9 @@ class AppState(SQLModel, table=True):
     id: int = Field(default=1, primary_key=True)
     # the demo clock: how many days ahead of the real date the app pretends it is
     clock_offset_days: int = 0
+    # real AI calls made today (real date, not the demo clock), to cap spending
+    ai_calls_date: date | None = None
+    ai_calls_count: int = 0
 
 
 class WebhookEvent(SQLModel, table=True):

@@ -10,7 +10,7 @@ from app import audit
 from app.billing import invoice_milestone
 from app.milestones import move
 from app.models import Contract, Invoice, Milestone, Reminder
-from app.paypal.client import PayPalClient, PayPalError
+from app.paypal.client import PayPalClient, PayPalError, paypal_reason
 from app.paypal.invoices import remind_invoice
 
 # days relative to the invoice due date
@@ -57,7 +57,7 @@ def _send_dated_invoices(session: Session, paypal: PayPalClient, today: date, su
             summary["invoiced"].append(invoice.number)
         except PayPalError as error:
             session.rollback()
-            summary["errors"].append(f"Invoice for '{milestone.title}' failed: PayPal {error.status_code}")
+            summary["errors"].append(f"Invoice for '{milestone.title}' failed: {paypal_reason(error)}")
 
 
 def _chase_open_invoices(session: Session, paypal: PayPalClient, today: date, summary: dict) -> None:
@@ -89,7 +89,11 @@ def _chase_open_invoices(session: Session, paypal: PayPalClient, today: date, su
         try:
             remind_invoice(paypal, invoice.paypal_invoice_id, subject, note)
         except PayPalError as error:
-            summary["errors"].append(f"Reminder for {invoice.number} failed: PayPal {error.status_code}")
+            if error.status_code == 429:
+                reason = "PayPal allows only 2 reminders a day, so it will go out on a later run."
+            else:
+                reason = paypal_reason(error)
+            summary["errors"].append(f"Reminder for {invoice.number} not sent yet: {reason}")
             continue
         session.add(Reminder(invoice_id=invoice.id, stage=stage, subject=subject, note=note))
         audit.record(

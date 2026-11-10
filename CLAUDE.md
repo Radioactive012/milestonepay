@@ -23,8 +23,9 @@ avoid jargon.
 |---|---|
 | `backend/app/paypal/`, `backend/app/billing.py`, `backend/app/milestones.py` | A |
 | `backend/app/api/portal.py`, `backend/app/files.py` | A |
-| `backend/app/jobs.py`, `backend/app/clock.py`, `backend/app/api/demo.py` | A |
-| `backend/scripts/`, deploy files, client portal screens (`frontend/src/pages/portal/`) | A |
+| `backend/app/jobs.py`, `backend/app/clock.py`, `backend/app/api/demo.py`, `backend/app/demo_data.py` | A |
+| `backend/scripts/`, `backend/app/frontend.py`, `backend/app/access.py`, `Dockerfile`, `render.yaml` | A |
+| Client portal and billing panel (`frontend/src/pages/portal/`), demo bar (`frontend/src/pages/demo/`) | A |
 | `backend/app/ai/`, `backend/app/api/messages.py`, `backend/evals/`, `frontend/` (except the portal) | B |
 | `backend/app/models.py`, `backend/app/db.py`, `backend/app/api/`, `requirements.txt`, `CLAUDE.md`, `README.md` | Shared |
 
@@ -57,7 +58,8 @@ can check with their teammate first. Never delete or rewrite the other person's 
 - No loops or extra retries around AI calls. `ask_json` already retries once; that's the limit.
 - Keep prompts short. Don't send the same document twice when a saved result can be reused.
 - Don't raise `max_tokens` or switch to a pricier model without asking the user.
-- Before the app goes online, AI routes need a request limit so visitors can't drain the credit.
+- A daily cap on real AI calls is enforced in `app.ai.llm` (`AI_DAILY_LIMIT`, default 150).
+  Don't bypass it; raise it in `.env` only if the user agrees.
 
 ## Daily git routine
 
@@ -102,7 +104,8 @@ python3.11 -m venv .venv
 ```
 
 Run tests: `.venv/bin/python -m pytest`
-Run the API locally: `.venv/bin/uvicorn app.main:app --reload`
+Run the whole app locally: build the screens once (`cd frontend && npm ci && npm run build`),
+then from `backend`: `.venv/bin/uvicorn app.main:app --reload` and open http://localhost:8000
 Check real PayPal sandbox keys: `.venv/bin/python -m scripts.paypal_spike <sandbox-buyer-email>`
 
 Secrets live in `.env` at the project root (copy `.env.example`). Each person keeps their own.
@@ -119,7 +122,17 @@ Secrets live in `.env` at the project root (copy `.env.example`). Each person ke
   reminders at -3, 0, +3, +7, +14 days). Runs hourly in the background and on demand.
 - `backend/app/clock.py`: the app's "today" (real date plus the demo clock offset). Use
   `clock.today(session)` instead of `date.today()` anywhere dates matter.
-- `backend/app/api/demo.py`: demo clock and "run jobs now" routes (off when `DEMO_MODE=false`)
+- `backend/app/api/demo.py`: demo clock, "run jobs now", load the demo project and reset
+  routes (all off when `DEMO_MODE=false`). `backend/app/demo_data.py` is the demo contract
+  with a saved AI reading, so loading it costs no AI credit.
+- `backend/app/frontend.py`: serves the built screens (`frontend/dist`) from the backend, so
+  the app is one website. Build them with `npm run build` in `frontend`.
+- `frontend/src/pages/portal/`: the client page (`/portal/<link>`), the freelancer's
+  billing, files and client link panel, and their API calls (`portalApi.ts`)
+- `frontend/src/pages/demo/DemoBar.tsx`: the yellow demo bar
+- `Dockerfile` and `render.yaml`: hosting on Render as one container
+- `backend/app/access.py`: optional `APP_PASSWORD` for the freelancer side (browser login box);
+  the client page, PayPal webhook and `/health` stay open. Tests turn it off in `conftest.py`.
 - `backend/app/ai/llm.py`: the only connection to the AI (OpenRouter, strict JSON answers)
 - `backend/app/ai/`: contract prompt (`contract.py`, PDFs read locally for free), output
   schema, code checks on the AI's answer

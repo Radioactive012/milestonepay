@@ -44,7 +44,19 @@ def create_invoice(client: PayPalClient, **payload_args) -> str:
     created = client.request(
         "POST", "/v2/invoicing/invoices", json=build_invoice_payload(**payload_args)
     )
-    return created["href"].rstrip("/").rsplit("/", 1)[-1]
+    return created_invoice_id(created)
+
+
+def created_invoice_id(created: dict) -> str:
+    """The new invoice's id. PayPal answers with the invoice itself, a link to it, or a list
+    of links, depending on the account's settings; accept all three."""
+    if created.get("id"):
+        return created["id"]
+    links = [created] if created.get("href") else created.get("links", [])
+    for link in links:
+        if link.get("rel", "self") == "self" and link.get("href"):
+            return link["href"].rstrip("/").rsplit("/", 1)[-1]
+    raise ValueError(f"PayPal didn't say which invoice it created: {str(created)[:200]}")
 
 
 def send_invoice(client: PayPalClient, invoice_id: str) -> None:

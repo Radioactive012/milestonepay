@@ -1,10 +1,12 @@
+import os
 import re
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session
+from sqlmodel import Session, SQLModel
 
 from app.ai.contract import get_contract_ai
+from app.ai.llm import DailyAILimit, get_ai_limit
 from app.ai.schemas import ContractAnalysis
 from app.db import get_session, init_db, make_engine
 from app.main import app
@@ -128,15 +130,27 @@ class FakePayPal:
             return self.invoices[match.group(1)]
         raise AssertionError(f"Unexpected PayPal call {method} {path}")
 
-    def verify_webhook(self, headers, event):
+    def verify_webhook(self, headers, raw_body):
         return self.webhooks_valid
+
+
+# Set TEST_DATABASE_URL to run every test against Postgres instead of an in-memory SQLite.
+# Every table in that database is dropped before each test, so never point it at real data.
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
 
 
 @pytest.fixture
 def engine():
-    engine = make_engine("sqlite://")
+    if TEST_DATABASE_URL:
+        import app.models  # noqa: F401  registers the tables
+
+        engine = make_engine(TEST_DATABASE_URL)
+        SQLModel.metadata.drop_all(engine)
+    else:
+        engine = make_engine("sqlite://")
     init_db(engine)
-    return engine
+    yield engine
+    engine.dispose()
 
 
 @pytest.fixture
@@ -156,7 +170,12 @@ def fake_ai():
 
 
 @pytest.fixture
-def api(engine, fake_paypal, fake_ai):
+def api(engine, fake_paypal, fake_ai, monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "app_password", "")
+    monkeypatch.setattr(get_settings(), "demo_mode", True)
+
     def override_session():
         with Session(engine) as session:
             yield session
@@ -164,5 +183,6 @@ def api(engine, fake_paypal, fake_ai):
     app.dependency_overrides[get_session] = override_session
     app.dependency_overrides[get_paypal_client] = lambda: fake_paypal
     app.dependency_overrides[get_contract_ai] = lambda: fake_ai
+    app.dependency_overrides[get_ai_limit] = lambda: DailyAILimit(engine, 150)
     yield TestClient(app)
     app.dependency_overrides.clear()

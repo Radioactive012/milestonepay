@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Progress from "../components/Progress";
-import { ApiError, USE_FIXTURES, approveContract, createContract, refreshInvoice, updateMilestone } from "../api";
+import { ApiError, USE_FIXTURES, approveContract, createContract, readContract, refreshInvoice, updateMilestone } from "../api";
 import MilestoneGrid from "../components/MilestoneGrid";
 import RiskReport from "../components/RiskReport";
 import { DEMO_CONTRACT_TEXT } from "../fixtures";
@@ -10,11 +10,13 @@ type Step = "input" | "analysing" | "review" | "approving" | "approved";
 const DEPOSITS = [0, 25, 30, 50];
 
 interface Props {
+  /** Open this saved draft for review instead of starting empty (used by the demo bar). */
+  draftId?: number | null;
   onApproved?: (contractId: number) => void;
   onOpenProject?: () => void;
 }
 
-export default function NewProject({ onApproved, onOpenProject }: Props) {
+export default function NewProject({ draftId, onApproved, onOpenProject }: Props) {
   const [step, setStep] = useState<Step>("input");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -27,6 +29,21 @@ export default function NewProject({ onApproved, onOpenProject }: Props) {
   const [gridKey, setGridKey] = useState(0);
 
   const fail = (e: unknown) => setError(e instanceof ApiError ? e.message : "Something went wrong. Please try again.");
+
+  useEffect(() => {
+    if (!draftId) return;
+    readContract(draftId)
+      .then((draft) => {
+        if (draft.status !== "draft") return;
+        setContract(draft);
+        setEmail(draft.client_email);
+        setName(draft.client_name);
+        setRate(Number(draft.hourly_rate).toFixed(2));
+        setDeposit(draft.deposit_pct_suggested);
+        setStep("review");
+      })
+      .catch(fail);
+  }, [draftId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function analyse() {
     setError(null);

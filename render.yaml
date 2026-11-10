@@ -1,0 +1,39 @@
+# Render Blueprint: one free web service built from the Dockerfile.
+# In Render: New > Blueprint > pick this repo. Values marked "sync: false" are secrets
+# that Render asks you to type in; they never go in this file.
+services:
+  - type: web
+    name: milestonepay
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: PAYPAL_ENVIRONMENT
+        value: SANDBOX
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: AI_MODEL
+        value: deepseek/deepseek-v4.1-flash-1017
+      - key: AI_DAILY_LIMIT
+        value: "150"
+      # Neon Postgres connection string. Without it the data is lost on every restart.
+      - key: DATABASE_URL
+        sync: false
+      # The sandbox Personal account that pays the demo project's invoices
+      - key: DEMO_CLIENT_EMAIL
+        sync: false
+      - key: DEMO_MODE
+        value: "true"
+      - key: JOBS_INTERVAL_MINUTES
+        value: "60"
+      # Password for the freelancer side (the browser asks for it; any user name).
+      # The client page and PayPal's webhook stay open. Leave empty to turn it off.
+      - key: APP_PASSWORD
+        sync: false

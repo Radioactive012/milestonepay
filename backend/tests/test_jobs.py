@@ -90,7 +90,7 @@ def test_overdue_invoice_can_still_be_paid(api, session, fake_paypal, deposit_in
 def test_failed_reminder_is_reported_and_retried_next_run(session, fake_paypal, deposit_invoice):
     fake_paypal.fail_remind = True
     summary = run(session, fake_paypal, deposit_invoice.due_date)
-    assert summary["reminders"] == [] and "failed" in summary["errors"][0]
+    assert summary["reminders"] == [] and "not sent yet" in summary["errors"][0]
     assert session.exec(select(Reminder)).all() == []
 
     fake_paypal.fail_remind = False
@@ -156,3 +156,20 @@ def test_demo_routes_can_be_turned_off(api, monkeypatch):
     monkeypatch.setattr(get_settings(), "demo_mode", False)
     assert api.get("/api/demo/clock").status_code == 404
     assert api.post("/api/demo/run-jobs").status_code == 404
+
+
+def test_paypal_reminder_limit_is_explained(session, fake_paypal, deposit_invoice):
+    from app.paypal.client import PayPalError
+
+    original = fake_paypal.request
+
+    def limited(method, path, json=None, **kwargs):
+        if path.endswith("/remind"):
+            raise PayPalError(429, '{"name":"RATE_LIMIT_REACHED"}')
+        return original(method, path, json=json, **kwargs)
+
+    fake_paypal.request = limited
+    summary = run(session, fake_paypal, deposit_invoice.due_date)
+    assert summary["reminders"] == []
+    assert "only 2 reminders a day" in summary["errors"][0]
+    assert session.exec(select(Reminder)).all() == []  # tried again on a later run

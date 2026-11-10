@@ -137,11 +137,26 @@ def test_verify_webhook_sends_headers_and_webhook_id(status, expected):
         "paypal-transmission-sig": "sig",
         "paypal-transmission-time": "2026-11-10T10:00:00Z",
     }
-    result = make_client(handler).verify_webhook(headers, {"id": "WH-EVT-1"})
+    result = make_client(handler).verify_webhook(headers, b'{"id": "WH-EVT-1"}')
     assert result is expected
     assert sent["webhook_id"] == "WH-1"
     assert sent["transmission_id"] == "t-1"
     assert sent["webhook_event"] == {"id": "WH-EVT-1"}
+
+
+def test_verify_webhook_sends_the_event_exactly_as_received():
+    raw = b'{"id":"WH-2",  "summary":"Caf\u00e9 paid", "resource":{"amount":{"value":"10.00"},"n":1.50}}'
+    sent = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v1/oauth2/token":
+            return httpx.Response(200, json={"access_token": "tok", "expires_in": 3600})
+        sent["body"] = request.content
+        return httpx.Response(200, json={"verification_status": "SUCCESS"})
+
+    assert make_client(handler).verify_webhook({}, raw) is True
+    assert raw in sent["body"]  # spacing, escapes and 1.50 untouched
+    assert json.loads(sent["body"])["webhook_event"]["summary"] == "Café paid"
 
 
 def test_missing_keys_give_a_clear_error_without_calling_paypal():
@@ -163,3 +178,40 @@ def test_network_failure_becomes_paypal_error():
     with pytest.raises(PayPalError) as error:
         make_client(handler).request("GET", "/v2/invoicing/invoices/INV2-1")
     assert error.value.status_code == 503
+
+
+@pytest.mark.parametrize(
+    "error,expected",
+    [
+        (PayPalError(401, "PayPal sandbox keys are missing. Add them to .env."), "PayPal sandbox keys are missing. Add them to .env (PayPal 401)."),
+        (PayPalError(401, '{"error":"invalid_client","error_description":"Client Authentication failed"}'), "Client Authentication failed (PayPal 401)."),
+        (PayPalError(422, '{"name":"UNPROCESSABLE_ENTITY","message":"The requested action could not be performed."}'), "The requested action could not be performed (PayPal 422)."),
+        (PayPalError(500, "{not json"), "{not json (PayPal 500)."),
+    ],
+)
+def test_paypal_reason_is_short_and_readable(error, expected):
+    from app.paypal.client import paypal_reason
+
+    assert paypal_reason(error) == expected
+
+
+@pytest.mark.parametrize(
+    "created",
+    [
+        {"rel": "self", "href": "https://api-m.sandbox.paypal.com/v2/invoicing/invoices/INV2-AAAA", "method": "GET"},
+        {"id": "INV2-AAAA", "status": "DRAFT"},
+        {"links": [{"rel": "send", "href": "https://x/v2/invoicing/invoices/INV2-AAAA/send"},
+                   {"rel": "self", "href": "https://x/v2/invoicing/invoices/INV2-AAAA"}]},
+    ],
+)
+def test_new_invoice_id_is_found_in_every_reply_shape(created):
+    from app.paypal.invoices import created_invoice_id
+
+    assert created_invoice_id(created) == "INV2-AAAA"
+
+
+def test_reply_without_an_invoice_id_is_a_clear_error():
+    from app.paypal.invoices import created_invoice_id
+
+    with pytest.raises(ValueError, match="didn't say which invoice"):
+        created_invoice_id({"links": []})

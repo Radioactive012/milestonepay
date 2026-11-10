@@ -1,12 +1,15 @@
 import { useState } from "react";
+import { USE_FIXTURES } from "./api";
 import Dashboard from "./pages/Dashboard";
+import DemoBar, { takeDraftToOpen } from "./pages/demo/DemoBar";
 import NewProject from "./pages/NewProject";
 import ProjectPage from "./pages/ProjectPage";
 
 type View = "dashboard" | "new" | "project";
 
 export default function App() {
-  const [view, setView] = useState<View>("dashboard");
+  const [draftId] = useState(takeDraftToOpen);
+  const [view, setView] = useState<View>(draftId ? "new" : "dashboard");
   const [contractId, setContractId] = useState<number | null>(null);
 
   const tab = (name: View, label: string) => (
@@ -28,6 +31,7 @@ export default function App() {
           {tab("project", "Messages and approvals")}
         </div>
       </nav>
+      {!USE_FIXTURES && <DemoBar />}
       {view === "dashboard" && (
         <Dashboard
           onNewProject={() => setView("new")}
@@ -38,7 +42,7 @@ export default function App() {
           }}
         />
       )}
-      {view === "new" && <NewProject onApproved={(id) => setContractId(id)} onOpenProject={() => setView("project")} />}
+      {view === "new" && <NewProject draftId={draftId} onApproved={(id) => setContractId(id)} onOpenProject={() => setView("project")} />}
       {view === "project" && <ProjectPage key={contractId ?? "none"} contractId={contractId} />}
     </>
   );

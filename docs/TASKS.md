@@ -12,6 +12,57 @@ a database table or an API route needs both people.
 
 Newest at the top. One line per push: who, what changed, anything the other must do.
 
+- Vinayak: PayPal checks against the docs, before real keys: webhook check sends PayPal the
+  event exactly as received; create-invoice accepts every reply shape; PayPal's 2-reminders-a-day
+  limit gets a plain message; stray spaces in `.env` values are ignored. Confirmed on OpenRouter:
+  our DeepSeek model supports strict JSON answers and image input (~$0.001 per contract).
+
+- Vinayak: **full test pass done** (228 tests, also all passing on real Postgres 16). Bugs fixed:
+  - Double clicks made two PayPal invoices / two deposits / two change orders. Now one request
+    at a time per item (`billing.one_at_a_time`). A suggestion becomes at most one change order.
+  - Refunds re-lock the client's files; late PAID events can't undo a refund.
+  - Milestones can't be edited after the contract is approved (`PATCH /api/milestones` → 409).
+  - **The freelancer side had no password**, so a client could download unpaid files through
+    `/api/files/<id>`. New optional `APP_PASSWORD` (`backend/app/access.py`): the browser asks
+    for it everywhere except the client page, PayPal webhook and `/health`. Off when empty.
+  - A fresh clone crashed on start (`DATABASE_URL=` empty in `.env`); empty settings now mean
+    "use the default".
+  - Browsers kept an old copy of the page after a deploy; the page is now always rechecked.
+  - Client page: messages scroll into view; a dated milestone can be approved once.
+  - Shared files touched (small): `api/contracts.py`, `main.py` (one line), `config.py`,
+    `tests/conftest.py` (tests ignore your own `.env`; `TEST_DATABASE_URL` runs them on Postgres).
+  - **Avirup, found in your files (not changed, your call):**
+    1. `NewProject.tsx` `approve()`: if PayPal refuses the deposit, the contract *is* approved
+       but the page goes back to "review" and the message is at the top, out of view. Clicking
+       Approve again says "already approved". Suggest: on error, `readContract` again and, if
+       its status is `active`, show the approved state with the error next to it.
+    2. `ProjectPage.tsx`: errors (for example "add your OpenRouter key" or the AI daily limit)
+       show at the very top while the button is far below, so Analyse looks like it did nothing.
+       `PortalPage.tsx` now uses a ref + `scrollIntoView` for this; the same works for you.
+    3. Dashboard lists only approved projects, so a draft you leave can't be found again.
+    4. `api/messages.py`: PayPal errors show only the code, e.g. "(401)"; `paypal_reason(error)`
+       from `app.paypal.client` gives the reason. Small: the milestone grid refuses bad amounts
+       silently; contract upload of a wrong file type answers 502 instead of 422.
+    5. `npm audit` flags esbuild/vite (dev server only; nothing that ships). Fix needs a Vite
+       major upgrade, so probably leave it until after the deadline.
+
+- Vinayak: **Person A's part is complete** (code side). New:
+  - Client page at `/portal/<link>` (`frontend/src/pages/portal/PortalPage.tsx`) and a
+    "Billing, files and client page" panel on the project page (client link with copy,
+    file upload, Send invoice now, Check payment).
+  - Yellow demo bar (`frontend/src/pages/demo/DemoBar.tsx`): load demo project (saved AI
+    reading, no credit), +7 days, back to today, run daily jobs, reset demo.
+  - One website: the backend serves `frontend/dist` (`backend/app/frontend.py`).
+  - Daily cap on real AI calls, `AI_DAILY_LIMIT` (default 150), enforced inside `app.ai.llm`.
+  - `Dockerfile`, `.dockerignore`, `render.yaml` for Render. New README with a judge walkthrough.
+  - PayPal errors now say why (for example "keys are missing"), not just the code.
+  - **Avirup, heads-up on your files** (small additions, please check):
+    `frontend/src/main.tsx` (shows the client page for `/portal/...` links),
+    `frontend/src/App.tsx` (demo bar under the nav; opens a just-loaded demo draft),
+    `frontend/src/pages/ProjectPage.tsx` (the billing panel under the milestones grid),
+    `frontend/src/pages/NewProject.tsx` (new optional `draftId` prop to open a saved draft).
+  - After pulling: delete `backend/milestonepay.db` (new columns), `pip install -r requirements.txt`.
+
 - Avirup: added `backend/app/api/messages.py` (message analysis and the approval inbox):
   `POST /api/messages`, `GET /api/messages`, `GET /api/suggestions`, and `approve` and `dismiss`
   for a suggestion. They call your `invoice_milestone`, `approve_change_order` and
@@ -95,10 +146,11 @@ extra only come back if the core works by Wednesday night. AG Grid and Render st
 - Clear errors when AI or PayPal keys are missing
 - AI runs on OpenRouter (DeepSeek V4.1 Flash 1017) through one shared connection, `app.ai.llm`
 - Daily jobs: dated invoices, overdue marking, PayPal reminders; demo clock and run-jobs routes
-- 95 passing tests, all with a pretend PayPal and a pretend AI
+- 131 passing tests, all with a pretend PayPal and a pretend AI
+- Client page, billing panel, demo bar, one-website serving, AI daily cap, Render files, README
 
 ## Not done yet
 
 - Not yet run against real PayPal sandbox or the real AI (needs keys in `.env`)
-- Message and suggestion routes (Avirup), frontend screens (Avirup's PR #1, portal page),
-  deploy to Render + Neon
+- Deploy to Render + Neon (needs Vinayak's accounts), first real PayPal and AI run (needs keys),
+  demo video and Devpost text

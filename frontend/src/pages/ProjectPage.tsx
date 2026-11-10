@@ -7,6 +7,7 @@ import {
 import MessageThread from "../components/MessageThread";
 import { AuditLog, InvoiceLedger, MilestonesGrid } from "../components/ProjectGrids";
 import SuggestionCard from "../components/SuggestionCard";
+import BillingPanel from "./portal/BillingPanel";
 import type { ApproveEdits, Contract, ContractSummary, Suggestion, ThreadMessage } from "../types";
 
 const DEMO_MESSAGE = "Sketches approved! Could you also add a matching menu design?";
@@ -142,6 +143,8 @@ export default function ProjectPage({ contractId: initialId }: { contractId: num
             </div>
             <MilestonesGrid contract={contract} />
           </section>
+
+          {!USE_FIXTURES && <BillingPanel contract={contract} onChanged={() => reload(contract.id).catch(fail)} />}
 
           <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
             <h2 className="text-lg font-semibold">Add a client message</h2>

@@ -1,4 +1,7 @@
 import secrets
+import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -12,7 +15,24 @@ from app.paypal.client import PayPalClient
 from app.paypal.invoices import create_invoice, get_invoice, payer_link, send_invoice
 
 PAID_STATUSES = {"PAID", "MARKED_AS_PAID"}
+REFUNDED_STATUSES = {"REFUNDED", "MARKED_AS_REFUNDED"}
 MAX_CHANGE_ORDER_HOURS = Decimal("200")
+
+_locks: dict[tuple, threading.Lock] = {}
+_locks_guard = threading.Lock()
+
+
+@contextmanager
+def one_at_a_time(*key) -> Iterator[None]:
+    """Let only one request at a time work on the same thing, so a double click can't bill twice.
+
+    This works because the app runs as one server process (see the Dockerfile). Read anything
+    the decision depends on after entering, not before.
+    """
+    with _locks_guard:
+        lock = _locks.setdefault(key, threading.Lock())
+    with lock:
+        yield
 
 
 def round_to_quarter_hour(hours: Decimal) -> Decimal:
@@ -30,7 +50,15 @@ def _due_date(milestone: Milestone, contract: Contract, today: date) -> date:
 def invoice_milestone(
     session: Session, paypal: PayPalClient, milestone: Milestone, actor: str, today: date | None = None
 ) -> Invoice:
-    """Create and send the PayPal invoice for a milestone. Safe to call again after a failure."""
+    """Create and send the PayPal invoice for a milestone. Safe to call again after a failure,
+    and safe when two requests ask at once: the second gets the first one's invoice."""
+    with one_at_a_time("milestone", milestone.id):
+        return _invoice_milestone(session, paypal, milestone, actor, today)
+
+
+def _invoice_milestone(
+    session: Session, paypal: PayPalClient, milestone: Milestone, actor: str, today: date | None
+) -> Invoice:
     existing = session.exec(
         select(Invoice).where(
             Invoice.milestone_id == milestone.id, Invoice.status.in_(["DRAFT", "SENT", "PAID"])
@@ -69,7 +97,10 @@ def invoice_milestone(
         audit.record(session, contract.id, actor, "invoice_created", number=number, paypal_id=paypal_id)
         session.commit()
 
-    send_invoice(paypal, invoice.paypal_invoice_id)
+        send_invoice(paypal, invoice.paypal_invoice_id)
+    elif get_invoice(paypal, invoice.paypal_invoice_id).get("status", "DRAFT") == "DRAFT":
+        # a retry: PayPal may have sent it last time even though we didn't hear back
+        send_invoice(paypal, invoice.paypal_invoice_id)
     invoice.payer_url = payer_link(get_invoice(paypal, invoice.paypal_invoice_id))
     invoice.status = "SENT"
     session.add(invoice)
@@ -94,8 +125,30 @@ def approve_change_order(
 
     The price is always hours x the contract's hourly rate, worked out here. Raises ValueError
     for bad input. If PayPal fails, the change order and its milestone are kept, and the
-    invoice can be retried with the milestone invoice route.
+    invoice can be retried with the milestone invoice route. A suggestion only ever becomes one
+    change order: approving it again returns the one already made.
     """
+    with one_at_a_time("change_order", contract.id):
+        if suggestion_id is not None:
+            made = session.exec(select(ChangeOrder).where(ChangeOrder.suggestion_id == suggestion_id)).first()
+            if made is not None:
+                return made
+        return _approve_change_order(
+            session, paypal, contract, description=description, estimated_hours=estimated_hours,
+            actor=actor, suggestion_id=suggestion_id,
+        )
+
+
+def _approve_change_order(
+    session: Session,
+    paypal: PayPalClient,
+    contract: Contract,
+    *,
+    description: str,
+    estimated_hours: Decimal,
+    actor: str,
+    suggestion_id: int | None,
+) -> ChangeOrder:
     description = description.strip()
     if not description:
         raise ValueError("Describe the extra work.")
@@ -145,7 +198,8 @@ def approve_change_order(
 
 
 def mark_invoice_paid(session: Session, invoice: Invoice, actor: str) -> None:
-    if invoice.status == "PAID":
+    # a late "paid" message must not undo a refund
+    if invoice.status in ("PAID", "REFUNDED"):
         return
     invoice.status = "PAID"
     invoice.paid_at = utcnow()
@@ -157,7 +211,8 @@ def mark_invoice_paid(session: Session, invoice: Invoice, actor: str) -> None:
 
 
 def mark_invoice_closed(session: Session, invoice: Invoice, status: str, actor: str) -> None:
-    if invoice.status == status:
+    """status is CANCELLED (never paid) or REFUNDED (paid, then the money went back)."""
+    if invoice.status == status or (status == "CANCELLED" and invoice.status in ("PAID", "REFUNDED")):
         return
     invoice.status = status
     session.add(invoice)
@@ -172,5 +227,20 @@ def sync_from_paypal(session: Session, paypal: PayPalClient, invoice: Invoice, a
     status = get_invoice(paypal, invoice.paypal_invoice_id).get("status", "")
     if status in PAID_STATUSES:
         mark_invoice_paid(session, invoice, actor)
-    elif status in ("CANCELLED", "REFUNDED"):
-        mark_invoice_closed(session, invoice, status, actor)
+    elif status == "CANCELLED":
+        mark_invoice_closed(session, invoice, "CANCELLED", actor)
+    elif status in REFUNDED_STATUSES:
+        mark_invoice_closed(session, invoice, "REFUNDED", actor)
+
+
+def unlocked_milestone_ids(session: Session, milestones: list[Milestone]) -> set[int]:
+    """Milestones whose files the client may download: paid, and the money wasn't refunded."""
+    paid = {m.id for m in milestones if m.status == "paid"}
+    if not paid:
+        return paid
+    refunded = set(
+        session.exec(
+            select(Invoice.milestone_id).where(Invoice.milestone_id.in_(paid), Invoice.status == "REFUNDED")
+        ).all()
+    )
+    return paid - refunded
