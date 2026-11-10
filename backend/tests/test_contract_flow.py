@@ -137,3 +137,10 @@ def test_refresh_reads_status_from_paypal(api, fake_paypal):
 def test_webhook_for_unknown_invoice_is_stored_and_ignored(api):
     response = api.post("/webhooks/paypal", json=paid_event("WH-9", "INV2-UNKNOWN"))
     assert response.json() == {"status": "ok"}
+
+
+def test_reopened_draft_still_has_the_contract_text(api):
+    # the review screen highlights risky sentences in the contract's own words, also after a reload
+    created = api.post("/api/contracts", data={"client_email": "b@example.com", "text": CONTRACT_TEXT}).json()
+    reopened = api.get(f"/api/contracts/{created['id']}").json()
+    assert reopened["source_text"] == CONTRACT_TEXT.strip()

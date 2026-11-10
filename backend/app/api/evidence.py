@@ -56,6 +56,7 @@ def evidence_html(session: Session, contract: Contract) -> str:
     approvals = [e for e in audit if e.action == "client_approved"]
     messages = session.exec(select(Message).where(Message.contract_id == contract.id).order_by(Message.id)).all()
     notes = session.exec(select(ClientNote).where(ClientNote.contract_id == contract.id).order_by(ClientNote.id)).all()
+    from_client_page = {n.message_id for n in notes if n.message_id}
     approved_at = next((e.created_at for e in audit if e.action == "contract_approved"), None)
     paid_total = sum((i.amount for i in invoices if i.status == "PAID"), start=Decimal("0.00"))
 
@@ -87,8 +88,9 @@ def evidence_html(session: Session, contract: Contract) -> str:
         )),
         ("What the client wrote", _table(
             ["When", "Where", "Message"],
-            [[_when(n.created_at), "Client page", n.body] for n in notes]
-            + [[_when(m.created_at), f"Inbox ({m.sender})", m.body] for m in messages],
+            [[_when(n.created_at), "Client page" + (", read by the AI" if n.message_id else ""), n.body] for n in notes]
+            # a client-page message the AI read is also saved in the inbox; list it once
+            + [[_when(m.created_at), f"Inbox ({m.sender})", m.body] for m in messages if m.id not in from_client_page],
         )),
         ("Audit log: every action, who did it, and when", _table(
             ["When", "Who", "What", "Details"],

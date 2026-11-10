@@ -208,7 +208,7 @@ export default function NewProject({ draftId, onApproved, onOpenProject }: Props
             {contract.client_name} · {contract.client_email} · {contract.currency} · pays within {contract.payment_terms_days} days
           </p>
 
-          <RiskReport contract={contract} sourceText={text.trim() || null} />
+          <RiskReport contract={contract} sourceText={text.trim() || contract.source_text || null} />
 
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">Milestones</h2>

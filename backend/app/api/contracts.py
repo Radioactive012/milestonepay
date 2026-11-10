@@ -68,6 +68,8 @@ def contract_out(session: Session, contract: Contract) -> dict:
         "ambiguities": json.loads(contract.ambiguities_json),
         "deposit_pct_suggested": contract.deposit_pct_suggested,
         "deposit_rationale": contract.deposit_rationale,
+        # the contract's own words, so a reopened draft can still highlight the risky sentences
+        "source_text": contract.raw_text,
         "milestones": [
             {
                 "id": m.id,

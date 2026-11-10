@@ -82,7 +82,7 @@ def test_portal_shows_client_view_only(api):
     assert deposit["is_deposit"] and deposit["invoice"]["payer_url"] == "https://pay.example/INV2-0001"
     assert deposit["can_approve"] is False
     assert view["milestones"][1]["can_approve"] is True
-    for private in ("risks", "audit", "client_email", "hourly_rate", "portal_token", "warnings"):
+    for private in ("risks", "audit", "client_email", "hourly_rate", "portal_token", "warnings", "source_text"):
         assert private not in view
 
 

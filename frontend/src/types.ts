@@ -69,6 +69,8 @@ export interface Contract {
   ambiguities: string[];
   deposit_pct_suggested: number;
   deposit_rationale: string;
+  /** The contract's own text; empty when it was a photo. */
+  source_text?: string;
   milestones: Milestone[];
   change_orders: ChangeOrder[];
   audit: AuditItem[];

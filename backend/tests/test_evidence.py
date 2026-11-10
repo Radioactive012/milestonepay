@@ -30,3 +30,19 @@ def test_evidence_pack_has_the_whole_story(api, session, fake_paypal):
 
 def test_evidence_pack_for_unknown_project_is_404(api):
     assert api.get("/api/contracts/999/evidence").status_code == 404
+
+
+def test_a_client_message_the_ai_read_is_listed_once(api):
+    from app.ai.messages import get_message_ai
+    from app.main import app
+    from tests.test_messages_api import MESSAGE, FakeMessageAI
+
+    app.dependency_overrides[get_message_ai] = lambda: FakeMessageAI()
+    contract = active_contract(api)
+    api.post(f"/api/portal/{contract['portal_token']}/messages", json={"body": MESSAGE})
+    note_id = api.get(f"/api/contracts/{contract['id']}/client-messages").json()[0]["id"]
+    assert api.post(f"/api/client-messages/{note_id}/analyse").status_code == 200
+
+    page = api.get(f"/api/contracts/{contract['id']}/evidence").text
+    assert page.count(MESSAGE) == 1
+    assert "Client page, read by the AI" in page
