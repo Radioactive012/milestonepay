@@ -220,6 +220,7 @@ frontend/src/    React screens: dashboard, new project, project page, client por
 - **PayPal Developer Platform (sandbox):** OAuth, Invoicing v2, Webhooks
 - **OpenRouter** with **DeepSeek V4.1 Flash 1017:** contract and message reading
 - **AG Grid Community:** the four tables described in [How it uses AG Grid](#how-it-uses-ag-grid)
+- **Bryntum Gantt (trial):** the payment timeline on the project page (invoice bars from sent to due, coloured paid, waiting or overdue; future payment dates as milestone diamonds)
 - **Render:** hosting, from a Dockerfile and a Blueprint
 - **Neon:** hosted Postgres
 - **FastAPI, SQLModel, Pydantic** (Python), **React, TypeScript, Tailwind, Vite**
