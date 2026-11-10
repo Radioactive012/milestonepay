@@ -1,6 +1,16 @@
 import os
 import re
 
+# Tests never read anyone's .env or real keys: no real PayPal, no real AI credit spent.
+# This must run before anything imports app.config.
+os.environ["MILESTONEPAY_ENV_FILE"] = ""
+for _key in (
+    "PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET", "PAYPAL_WEBHOOK_ID", "PAYPAL_ENVIRONMENT",
+    "OPENROUTER_API_KEY", "AI_MODEL", "AI_DAILY_LIMIT", "DATABASE_URL", "DEMO_MODE",
+    "DEMO_CLIENT_EMAIL", "JOBS_INTERVAL_MINUTES", "APP_PASSWORD",
+):
+    os.environ.pop(_key, None)
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel
