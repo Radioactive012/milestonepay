@@ -37,6 +37,7 @@ function recall(): string | null {
 
 function describe(summary: JobsSummary) {
   const parts = [
+    summary.paid?.length && `${summary.paid.length} payment(s) found at PayPal`,
     summary.invoiced.length && `${summary.invoiced.length} invoice(s) sent`,
     summary.overdue.length && `${summary.overdue.length} invoice(s) now overdue`,
     summary.reminders.length && `${summary.reminders.length} PayPal reminder(s) sent`,

@@ -1,4 +1,5 @@
-"""Daily jobs: send dated invoices, mark late invoices overdue, and send PayPal reminders.
+"""Daily jobs: check open invoices with PayPal, send dated invoices, mark late invoices overdue,
+and send PayPal reminders.
 
 All of this is done by code on a fixed schedule. Nothing here is decided by the AI.
 """
@@ -7,7 +8,7 @@ from datetime import date, timedelta
 from sqlmodel import Session, select
 
 from app import audit
-from app.billing import invoice_milestone
+from app.billing import invoice_milestone, sync_from_paypal
 from app.milestones import move
 from app.models import Contract, Invoice, Milestone, Reminder
 from app.paypal.client import PayPalClient, PayPalError, paypal_reason
@@ -43,6 +44,26 @@ def reminder_text(days: int, invoice: Invoice) -> tuple[str, str]:
         f"Invoice {invoice.number} for {amount} is {days} days overdue (due {due}). Please pay it now. "
         "If something is wrong with the work or the invoice, reply so we can sort it out.",
     )
+
+
+def _check_open_invoices(session: Session, paypal: PayPalClient, summary: dict) -> None:
+    """Ask PayPal about every unpaid invoice, so a slow or missed webhook still gets the payment recorded."""
+    open_invoices = session.exec(
+        select(Invoice)
+        .join(Milestone, Milestone.id == Invoice.milestone_id)
+        .where(Invoice.status == "SENT", Milestone.status.in_(["invoiced", "overdue"]))
+        .order_by(Invoice.id)
+    ).all()
+    for invoice in open_invoices:
+        try:
+            sync_from_paypal(session, paypal, invoice, "system")
+            session.commit()
+        except PayPalError as error:
+            session.rollback()
+            summary["errors"].append(f"Couldn't check {invoice.number} with PayPal: {paypal_reason(error)}")
+            continue
+        if invoice.status == "PAID":
+            summary["paid"].append(invoice.number)
 
 
 def _send_dated_invoices(session: Session, paypal: PayPalClient, today: date, summary: dict) -> None:
@@ -106,7 +127,9 @@ def _chase_open_invoices(session: Session, paypal: PayPalClient, today: date, su
 
 def run_daily_jobs(session: Session, paypal: PayPalClient, today: date) -> dict:
     """Safe to run as often as you like: each invoice, overdue mark and reminder happens once."""
-    summary = {"today": today.isoformat(), "invoiced": [], "overdue": [], "reminders": [], "errors": []}
+    summary = {"today": today.isoformat(), "paid": [], "invoiced": [], "overdue": [], "reminders": [], "errors": []}
+    # first, so an invoice paid without a webhook isn't marked overdue or reminded
+    _check_open_invoices(session, paypal, summary)
     _send_dated_invoices(session, paypal, today, summary)
     _chase_open_invoices(session, paypal, today, summary)
     return summary

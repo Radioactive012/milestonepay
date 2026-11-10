@@ -173,3 +173,35 @@ def test_paypal_reminder_limit_is_explained(session, fake_paypal, deposit_invoic
     assert summary["reminders"] == []
     assert "only 2 reminders a day" in summary["errors"][0]
     assert session.exec(select(Reminder)).all() == []  # tried again on a later run
+
+
+def test_jobs_record_a_payment_paypal_never_sent_a_webhook_for(session, fake_paypal, deposit_invoice):
+    # the client paid, but PayPal's webhook was slow or lost
+    fake_paypal.invoices[deposit_invoice.paypal_invoice_id]["status"] = "PAID"
+    summary = run(session, fake_paypal, deposit_invoice.due_date + timedelta(days=5))
+    session.expire_all()
+    assert summary["paid"] == [deposit_invoice.number]
+    # checked before chasing, so a paid invoice is never marked overdue or reminded
+    assert deposit_invoice.number not in summary["overdue"]
+    assert deposit_invoice.number not in [r["number"] for r in summary["reminders"]]
+    assert session.get(Invoice, deposit_invoice.id).status == "PAID"
+    assert session.get(Milestone, deposit_invoice.milestone_id).status == "paid"
+    # the next run doesn't ask PayPal about the paid invoice again
+    calls_before = len(fake_paypal.calls)
+    assert run(session, fake_paypal, deposit_invoice.due_date + timedelta(days=5))["paid"] == []
+    asked = [path for _, path, _ in fake_paypal.calls[calls_before:]]
+    assert f"/v2/invoicing/invoices/{deposit_invoice.paypal_invoice_id}" not in asked
+
+
+def test_jobs_record_a_cancelled_invoice(session, fake_paypal, deposit_invoice):
+    fake_paypal.invoices[deposit_invoice.paypal_invoice_id]["status"] = "CANCELLED"
+    run(session, fake_paypal, date.today())
+    session.expire_all()
+    assert session.get(Milestone, deposit_invoice.milestone_id).status == "cancelled"
+
+
+def test_a_failed_paypal_check_is_reported_and_the_rest_still_runs(session, fake_paypal, deposit_invoice):
+    fake_paypal.fail_get = True
+    summary = run(session, fake_paypal, deposit_invoice.due_date)
+    assert "Couldn't check" in summary["errors"][0]
+    assert [r["stage"] for r in summary["reminders"]] == [0]

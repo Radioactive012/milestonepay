@@ -12,6 +12,7 @@ a database table or an API route needs both people.
 
 Newest at the top. One line per push: who, what changed, anything the other must do.
 
+- Vinayak: the daily jobs now ask PayPal about every unpaid invoice first, so a slow or lost webhook still gets the payment recorded (and a paid invoice is never chased). Avirup's two notes: the AI cap already counts by the real date (new test proves +7 days can't reset it); the Billing panel's green message now hides after 8 seconds and errors get a Dismiss button. Render stays on the free plan (files live in Neon, so nothing is lost when it sleeps).
 - Vinayak: README now has the hosted link and the judge logins (app password, sandbox buyer),
   as the rules require for a password-protected demo. Hosted AI cap lowered to 40/day in
   `render.yaml`. **Avirup: the rules say the video must be public on YouTube** ("must be uploaded

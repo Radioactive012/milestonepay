@@ -110,6 +110,7 @@ class FakePayPal:
         self.webhooks_valid = True
         self.fail_create = False
         self.fail_remind = False
+        self.fail_get = False
         self.reminders: list[tuple[str, dict]] = []
 
     def request(self, method, path, json=None, **kwargs):
@@ -137,6 +138,8 @@ class FakePayPal:
             self.reminders.append((match.group(1), json))
             return {}
         if match and method == "GET":
+            if self.fail_get:
+                raise PayPalError(500, "sandbox is down")
             return self.invoices[match.group(1)]
         raise AssertionError(f"Unexpected PayPal call {method} {path}")
 

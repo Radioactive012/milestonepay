@@ -51,6 +51,7 @@ export interface DemoClock {
 
 export interface JobsSummary {
   today: string;
+  paid: string[];
   invoiced: string[];
   overdue: string[];
   reminders: { number: string; stage: number; subject: string }[];

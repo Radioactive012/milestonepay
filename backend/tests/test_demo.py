@@ -1,8 +1,9 @@
 from datetime import date, timedelta
 
+import pytest
 from sqlmodel import select
 
-from app.ai.llm import DailyAILimit
+from app.ai.llm import AIError, DailyAILimit
 from app.models import AppState, AuditEntry, Contract, Invoice, Milestone
 
 
@@ -71,3 +72,15 @@ def test_demo_load_and_reset_are_off_outside_demo_mode(api, monkeypatch):
     monkeypatch.setattr(get_settings(), "demo_mode", False)
     assert api.post("/api/demo/load").status_code == 404
     assert api.post("/api/demo/reset").status_code == 404
+
+
+def test_moving_the_demo_clock_does_not_reset_the_ai_cap(api, engine):
+    # the cap counts by the real date, so jumping the demo clock can't give out fresh AI calls
+    limit = DailyAILimit(engine, 2)
+    limit.take_one()
+    limit.take_one()
+    api.post("/api/demo/clock", json={"offset_days": 7})
+    api.post("/api/demo/clock", json={"offset_days": 14})
+    assert api.get("/api/demo/clock").json()["ai_calls_today"] == 2
+    with pytest.raises(AIError):
+        limit.take_one()

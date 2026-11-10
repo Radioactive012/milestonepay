@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Contract, Milestone } from "../../types";
 import {
   PortalError, checkPayment, money, ownFileUrl, portalLink, readableSize, sendInvoice, uploadFile,
@@ -18,6 +18,13 @@ export default function BillingPanel({ contract, onChanged }: { contract: Contra
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const link = contract.portal_token ? portalLink(contract.portal_token) : null;
+
+  // a success message hides itself, so it doesn't sit there after later changes elsewhere on the page
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), 8000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
   async function run(work: () => Promise<string>) {
     setBusy(true);
@@ -66,7 +73,12 @@ export default function BillingPanel({ contract, onChanged }: { contract: Contra
         </div>
       )}
 
-      {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
+      {error && (
+        <div role="alert" className="flex items-start justify-between gap-3 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+          <p>{error}</p>
+          <button onClick={() => setError(null)} className="shrink-0 text-xs underline">Dismiss</button>
+        </div>
+      )}
       {notice && <p role="status" className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p>}
 
       <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">

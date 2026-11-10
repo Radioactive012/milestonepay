@@ -118,7 +118,7 @@ Secrets live in `.env` at the project root (copy `.env.example`). Each person ke
 - `backend/app/api/portal.py`: file upload, and the client portal (private link per
   contract: view, approve a milestone, watermarked previews, downloads locked until paid)
 - `backend/app/files.py`: file name cleaning and watermarked previews
-- `backend/app/jobs.py`: daily jobs (dated invoices a week early, overdue marking, PayPal
+- `backend/app/jobs.py`: daily jobs (checks unpaid invoices with PayPal, dated invoices a week early, overdue marking, PayPal
   reminders at -3, 0, +3, +7, +14 days). Runs hourly in the background and on demand.
 - `backend/app/clock.py`: the app's "today" (real date plus the demo clock offset). Use
   `clock.today(session)` instead of `date.today()` anywhere dates matter.
