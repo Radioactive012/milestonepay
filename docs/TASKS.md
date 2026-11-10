@@ -12,6 +12,11 @@ a database table or an API route needs both people.
 
 Newest at the top. One line per push: who, what changed, anything the other must do.
 
+- Vinayak: the deposit-failure message now says where the retry is: "open the project (Messages and
+  approvals) and click Send invoice now on the deposit, in the Billing, files and client page
+  section". Avirup: if you want, a Send invoice now button in NewProject's approved state would be
+  even easier. The PayPal 403 is the sandbox app's Invoicing feature; Vinayak is switching it on.
+
 - Vinayak: `ContractReader` raises `AIError("Couldn't read this contract. Try again.")` when the
   reading is completely empty (no milestones, risks or questions), as Avirup asked. Slightly
   narrower than "no milestones": a vague contract (like eval c03) may have no clear milestones

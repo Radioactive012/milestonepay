@@ -333,7 +333,9 @@ def _approve_contract(contract_id: int, body: ApproveRequest, session: Session, 
         except PayPalError as error:
             raise HTTPException(
                 status_code=502,
-                detail=f"Milestones approved, but PayPal didn't accept the deposit invoice: {paypal_reason(error)} Use Send invoice now to retry.",
+                detail=f"Milestones approved, but PayPal didn't accept the deposit invoice: {paypal_reason(error)} "
+                "To retry, open the project (Messages and approvals) and click Send invoice now on the "
+                "deposit, in the Billing, files and client page section.",
             )
     return contract_out(session, contract)
 
