@@ -20,6 +20,8 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 _UNSUPPORTED_KEYWORDS = {"default", "title", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"}
 
 Output = TypeVar("Output", bound=BaseModel)
+# low but not 0: at exactly 0 this model sometimes repeats itself until it runs out of space
+TEMPERATURE = 0.2
 
 
 class AIError(Exception):
@@ -124,8 +126,7 @@ class OpenRouterLLM:
         body = {
             "model": self._model,
             "max_tokens": max_tokens,
-            # 0 = the most consistent answers: the same document reads the same way every time
-            "temperature": 0,
+            "temperature": TEMPERATURE,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}],
             "response_format": {
                 "type": "json_schema",
@@ -134,11 +135,13 @@ class OpenRouterLLM:
             # only use providers that support the strict JSON format
             "provider": {"require_parameters": True},
         }
-        for _ in range(2):
+        for attempt in range(2):
             if self._limit:
                 self._limit.take_one()
             choice = self._post(body)["choices"][0]
             if choice.get("finish_reason") == "length":
+                if attempt == 0:
+                    continue  # usually a one-off loop in the answer: ask once more
                 raise AIError("The AI couldn't finish its answer. Try a shorter document.")
             if choice.get("finish_reason") == "content_filter":
                 raise AIError("The AI declined to read this document.")
@@ -146,7 +149,7 @@ class OpenRouterLLM:
             try:
                 return output.model_validate_json(answer)
             except ValidationError as error:
-                # at temperature 0 the same question gets the same answer, so the retry says what was wrong
+                # a plain retry often repeats the same mistake, so the retry says what was wrong
                 body = body | {
                     "messages": body["messages"] + [
                         {"role": "assistant", "content": answer[:4000]},
