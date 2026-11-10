@@ -33,3 +33,12 @@ def test_spaces_around_pasted_keys_are_ignored(tmp_path, monkeypatch):
     assert settings.openrouter_api_key == "sk-or-v1-abc"
     assert settings.paypal_client_id == "AbC"
     assert settings.demo_client_email == "sb-1@personal.example.com"
+
+
+def test_tests_never_see_real_keys():
+    from app.config import ENV_FILE, get_settings
+
+    assert ENV_FILE is None
+    settings = get_settings()
+    assert settings.openrouter_api_key == "" and settings.paypal_client_secret == ""
+    assert settings.demo_client_email == "buyer@example.com"

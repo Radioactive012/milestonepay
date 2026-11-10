@@ -12,6 +12,9 @@ a database table or an API route needs both people.
 
 Newest at the top. One line per push: who, what changed, anything the other must do.
 
+- Vinayak: tests now ignore `.env` and real keys completely (`MILESTONEPAY_ENV_FILE=""` set in
+  `tests/conftest.py`), so a filled-in `.env` can't change results or spend AI credit.
+
 - Vinayak: PayPal checks against the docs, before real keys: webhook check sends PayPal the
   event exactly as received; create-invoice accepts every reply shape; PayPal's 2-reminders-a-day
   limit gets a plain message; stray spaces in `.env` values are ignored. Confirmed on OpenRouter:

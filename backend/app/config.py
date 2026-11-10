@@ -1,9 +1,16 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
+# MILESTONEPAY_ENV_FILE picks another settings file; set to "" for none (the tests do this,
+# so they never see anyone's real keys)
+_env_override = os.environ.get("MILESTONEPAY_ENV_FILE")
+if _env_override is None:
+    ENV_FILE: Path | None = Path(__file__).resolve().parents[2] / ".env"
+else:
+    ENV_FILE = Path(_env_override) if _env_override else None
 LOCAL_DB = Path(__file__).resolve().parents[1] / "milestonepay.db"
 SANDBOX_URL = "https://api-m.sandbox.paypal.com"
 
