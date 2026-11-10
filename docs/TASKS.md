@@ -12,6 +12,10 @@ a database table or an API route needs both people.
 
 Newest at the top. One line per push: who, what changed, anything the other must do.
 
+- Vinayak: README has a new "How it uses AG Grid" section (your four tables), for the AG Grid
+  sponsor prize. Avirup: worth 10 seconds in the video: edit a milestone amount (Total updates)
+  and filter the audit log; and a line in the Devpost text.
+
 - Vinayak: `temperature: 0` on every AI call in `ask_json` (Avirup's request, for consistent
   evals and demo; DeepSeek on OpenRouter supports it). The one retry now tells the AI what was
   wrong with its first answer, since at temperature 0 a plain repeat gets the same answer.

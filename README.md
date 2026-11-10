@@ -62,6 +62,22 @@ Every answer must match a strict JSON schema, and code checks it before anything
 
 See the [architecture diagram](docs/architecture.md) for how the pieces fit together.
 
+## How it uses AG Grid
+
+Four tables in the app are AG Grid (Community edition), each doing real work:
+
+- **Milestone review table** (New project page): the freelancer fixes what the AI read, right
+  in the table. Title, amount, "paid when" (a dropdown) and due date are editable while the
+  contract is a draft, and each edit saves at once. Amounts must be above zero, a date-based
+  milestone without a date turns red, and a pinned **Total** row updates after every edit, with a
+  warning if the milestones no longer add up to the contract total.
+- **Milestones table** (Project page): sortable and filterable, with a number filter on amounts
+  and status colours that show overdue milestones in red.
+- **Invoice ledger** (Project page): every PayPal invoice with its status, due date, paid date
+  and a link to PayPal's pay page, plus a pinned totals row.
+- **Audit log** (Project page): every action by the freelancer, the client, the AI, PayPal and
+  the system, with a search box and a filter by who did it. It's the evidence trail for disputes.
+
 ## Safety: the AI proposes, code moves money, people approve
 
 - **No made-up quotes.** Every clause or message the AI quotes must appear word for word in
@@ -201,7 +217,7 @@ frontend/src/    React screens: dashboard, new project, project page, client por
 
 - **PayPal Developer Platform (sandbox):** OAuth, Invoicing v2, Webhooks
 - **OpenRouter** with **DeepSeek V4.1 Flash 1017:** contract and message reading
-- **AG Grid Community:** milestone, invoice and audit log tables
+- **AG Grid Community:** the four tables described in [How it uses AG Grid](#how-it-uses-ag-grid)
 - **Render:** hosting, from a Dockerfile and a Blueprint
 - **Neon:** hosted Postgres
 - **FastAPI, SQLModel, Pydantic** (Python), **React, TypeScript, Tailwind, Vite**
