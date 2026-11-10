@@ -16,8 +16,10 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
 from app.ai.contract import get_contract_ai  # noqa: E402
+from app.ai.llm import AIError  # noqa: E402
 from app.ai.guardrails import check_analysis  # noqa: E402
 from app.ai.messages import check_message_analysis, get_message_ai  # noqa: E402
+from app.db import init_db  # noqa: E402
 
 HOURLY_RATE = Decimal("40")
 
@@ -28,13 +30,16 @@ def run_contract(case: dict) -> tuple[list[str], bool]:
     if not path.exists():
         return [f"missing file {case['file']}"], True
     ai = get_contract_ai()
-    if path.suffix == ".txt":
-        text = path.read_text()
-        analysis = ai.analyse(text=text, file_bytes=None, media_type=None)
-    else:
-        media = mimetypes.guess_type(path.name)[0]
-        analysis = ai.analyse(text=None, file_bytes=path.read_bytes(), media_type=media)
-        text = analysis.transcription
+    try:
+        if path.suffix == ".txt":
+            text = path.read_text()
+            analysis = ai.analyse(text=text, file_bytes=None, media_type=None)
+        else:
+            media = mimetypes.guess_type(path.name)[0]
+            analysis = ai.analyse(text=None, file_bytes=path.read_bytes(), media_type=media)
+            text = analysis.transcription
+    except AIError as error:
+        return [f"AI error: {error}"], False
     checked = check_analysis(analysis, text)
 
     failed = []
@@ -53,7 +58,7 @@ def run_contract(case: dict) -> tuple[list[str], bool]:
     if missing:
         failed.append(f"missed risks {missing}")
     if "max_risks" in case and len(checked.risks) > case["max_risks"]:
-        failed.append(f"{len(checked.risks)} risks flagged on a clean contract")
+        failed.append(f"{len(checked.risks)} risks flagged, at most {case['max_risks']} expected: {sorted(categories)}")
     if checked.deposit_pct not in case["deposit_in"]:
         failed.append(f"deposit {checked.deposit_pct} not in {case['deposit_in']}")
     mismatch = any("add up" in w for w in checked.warnings)
@@ -68,9 +73,12 @@ def run_contract(case: dict) -> tuple[list[str], bool]:
 
 def run_message(case: dict, data: dict) -> list[str]:
     titles = [m["title"] for m in data["milestones"]]
-    analysis = get_message_ai().analyse(
-        message=case["body"], contract_text=data["contract_text"], milestones=data["milestones"]
-    )
+    try:
+        analysis = get_message_ai().analyse(
+            message=case["body"], contract_text=data["contract_text"], milestones=data["milestones"]
+        )
+    except AIError as error:
+        return [f"AI error: {error}"]
     checked = check_message_analysis(analysis, case["body"], data["contract_text"], titles, HOURLY_RATE)
     failed = []
     reached = sorted(s.milestone_title for s in checked.milestone_signals)
@@ -80,11 +88,16 @@ def run_message(case: dict, data: dict) -> list[str]:
         failed.append(f"out_of_scope={bool(checked.out_of_scope)}, expected {case['out_of_scope']}")
     if bool(checked.revision_requests) != case["revision"]:
         failed.append(f"revision={bool(checked.revision_requests)}, expected {case['revision']}")
+    if failed and checked.dropped:
+        failed.append(f"dropped by the code checks: {checked.dropped}")
+    if failed and checked.out_of_scope:
+        failed.append(f"AI's extra-work quote: {checked.out_of_scope[0].request_quote!r}")
     return failed
 
 
 def main() -> None:
     which = sys.argv[1] if len(sys.argv) > 1 else "all"
+    init_db()  # the daily AI limit is counted in the database
     totals = {}
 
     if which in ("all", "contracts"):
