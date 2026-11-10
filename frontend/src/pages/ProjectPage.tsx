@@ -5,6 +5,7 @@ import {
   listSuggestions, postMessage, readContract, updateHourlyRate,
 } from "../api";
 import MessageThread from "../components/MessageThread";
+import PaymentTimeline from "../components/PaymentTimeline";
 import { AuditLog, InvoiceLedger, MilestonesGrid } from "../components/ProjectGrids";
 import SuggestionCard from "../components/SuggestionCard";
 import BillingPanel from "./portal/BillingPanel";
@@ -150,6 +151,12 @@ export default function ProjectPage({ contractId: initialId }: { contractId: num
               </label>
             </div>
             <MilestonesGrid contract={contract} />
+          </section>
+
+          <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="text-lg font-semibold">Payment timeline</h2>
+            <p className="text-sm text-slate-600">When each payment is due, and where every invoice stands. Built with Bryntum Gantt.</p>
+            <PaymentTimeline contract={contract} />
           </section>
 
           {!USE_FIXTURES && <BillingPanel contract={contract} onChanged={() => reload(contract.id).catch(fail)} />}
