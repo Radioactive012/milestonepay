@@ -11,6 +11,8 @@ export interface Totals {
   notInvoiced: number;
 }
 
+const REFUNDED = new Set(["REFUNDED", "MARKED_AS_REFUNDED"]);
+
 export const todayIso = () => new Date().toISOString().slice(0, 10);
 
 export function isOverdue(m: Milestone, today = todayIso()): boolean {
@@ -25,6 +27,8 @@ export function totalsFor(contracts: Contract[], today = todayIso()): Totals {
   for (const c of contracts) {
     for (const m of c.milestones) {
       const value = cents(m.amount);
+      // a refunded payment went back to the client, so it is neither received nor still expected
+      if (m.status === "paid" && REFUNDED.has(m.invoice?.status ?? "")) continue;
       if (m.status === "paid") t.received += value;
       else if (m.status === "cancelled") continue;
       else if (m.status === "draft" && !m.is_deposit && m.trigger !== "change_order") continue; // not approved yet
