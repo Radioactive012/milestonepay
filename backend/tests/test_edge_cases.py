@@ -218,6 +218,8 @@ def test_refund_locks_the_files_again(api):
     assert portal["milestones"][0]["files"][0]["locked"] is True
     assert portal["milestones"][0]["invoice"]["status"] == "REFUNDED"
     assert portal["paid"] == "0.00"
+    # the client page must not still say "Paid" for money that went back
+    assert portal["milestones"][0]["status"] == "refunded"
 
 
 def test_late_paid_event_after_refund_is_ignored(api):

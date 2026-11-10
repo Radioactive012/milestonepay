@@ -178,7 +178,8 @@ def portal_view(session: Session, contract: Contract) -> dict:
                 "id": m.id,
                 "title": m.title,
                 "amount": str(m.amount),
-                "status": m.status,
+                # paid, then refunded: show that, not "Paid"
+                "status": "refunded" if m.status == "paid" and m.id not in paid_ids else m.status,
                 "due_date": m.due_date,
                 "trigger_description": m.trigger_description,
                 "is_deposit": m.is_deposit,

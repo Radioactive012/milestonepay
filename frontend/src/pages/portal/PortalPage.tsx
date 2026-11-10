@@ -12,6 +12,7 @@ const STATUS: Record<string, { label: string; style: string }> = {
   invoiced: { label: "Invoice sent", style: "bg-amber-100 text-amber-900" },
   overdue: { label: "Overdue", style: "bg-red-100 text-red-800" },
   paid: { label: "Paid", style: "bg-emerald-100 text-emerald-800" },
+  refunded: { label: "Refunded", style: "bg-slate-200 text-slate-700" },
 };
 
 const WAITING_FOR_PAYMENT = new Set(["invoiced", "overdue"]);
