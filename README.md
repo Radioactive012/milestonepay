@@ -60,6 +60,8 @@ The AI is **DeepSeek V4.1 Flash 1017** (`deepseek/deepseek-v4.1-flash-1017`) thr
 
 Every answer must match a strict JSON schema, and code checks it before anything is saved.
 
+See the [architecture diagram](docs/architecture.md) for how the pieces fit together.
+
 ## Safety: the AI proposes, code moves money, people approve
 
 - **No made-up quotes.** Every clause or message the AI quotes must appear word for word in

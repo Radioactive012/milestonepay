@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Progress from "../components/Progress";
 import {
   ApiError, USE_FIXTURES, approveSuggestion, dismissSuggestion, listContracts, listMessages,
@@ -23,8 +23,14 @@ export default function ProjectPage({ contractId: initialId }: { contractId: num
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const messageRef = useRef<HTMLDivElement>(null);
 
   const fail = (e: unknown) => setError(e instanceof ApiError ? e.message : "Something went wrong. Please try again.");
+
+  // errors and notices can appear far from the button that caused them, so bring them into view
+  useEffect(() => {
+    if (error || notice) messageRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [error, notice]);
 
   useEffect(() => {
     listContracts()
@@ -122,8 +128,10 @@ export default function ProjectPage({ contractId: initialId }: { contractId: num
         )}
       </header>
 
-      {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
-      {notice && <p role="status" className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p>}
+      <div ref={messageRef} className="space-y-3">
+        {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
+        {notice && <p role="status" className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p>}
+      </div>
 
       {!contract ? (
         <Progress>Loading your project…</Progress>
