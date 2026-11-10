@@ -26,9 +26,10 @@ Freelancers who find their own clients lose money in predictable ways:
 |---|---|
 | **Before signing** | Paste a contract, upload a PDF, or upload a photo of one. The AI lists the payment milestones, flags risky clauses with a fairer rewrite for each, and suggests a deposit. |
 | **Approval** | The freelancer reviews and edits the milestones, then approves. The deposit invoice goes out through PayPal at once. |
-| **During the work** | Client messages are read against the contract. The AI spots approved milestones, out-of-scope requests (priced as change orders at the freelancer's hourly rate) and extra revision rounds. Each one waits in an approval inbox. |
+| **During the work** | Client messages are read against the contract. The AI spots approved milestones, out-of-scope requests (priced as change orders at the freelancer's hourly rate) and extra revision rounds. Each one waits in an approval inbox. Clients can also write from their own page; the freelancer chooses whether the AI reads it, so the public page never spends AI credit. |
 | **Delivery** | The client gets a private page with milestones, PayPal payment buttons and watermarked previews of the files. The full files unlock automatically when PayPal reports the invoice paid. |
-| **After delivery** | Dated milestones are invoiced a week early, late invoices are marked overdue, and PayPal reminders go out 3 days before, on the due day, and 3, 7 and 14 days late. |
+| **After delivery** | Dated milestones are invoiced a week early, late invoices are marked overdue, and PayPal reminders go out 3 days before, on the due day, and 3, 7 and 14 days late. Every hour the app also asks PayPal about each unpaid invoice, so a slow or missed webhook still gets the payment recorded. |
+| **If there's a dispute** | One click builds a printable evidence pack: what was agreed, every file delivered (with its SHA-256 fingerprint), what the client approved and wrote, every invoice and payment, and the full audit log. |
 
 ## How it uses PayPal
 
@@ -41,8 +42,8 @@ against live PayPal.
 - **Webhooks**: `INVOICING.INVOICE.PAID`, `.CANCELLED` and `.REFUNDED` update the milestone.
   Every event's signature is checked with `/v1/notifications/verify-webhook-signature`, and
   repeated events are ignored.
-- **Reconciliation**: a "Check payment" button reads the invoice from PayPal directly, in
-  case a webhook is missed.
+- **Reconciliation**: the hourly jobs read every unpaid invoice from PayPal directly, and a
+  "Check payment" button does the same for one invoice, in case a webhook is slow or missed.
 
 Deposits, milestone payments and change orders are all real PayPal sandbox invoices, paid on
 PayPal's own payment page.
@@ -173,6 +174,10 @@ The tests use a pretend PayPal and a pretend AI, so they cost nothing and need n
 
 ## Deploy on Render
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Radioactive012/milestonepay)
+
+The button (or the steps below) reads `render.yaml` and sets everything up; you only fill in the secrets.
+
 1. Create a free Postgres database on [Neon](https://neon.tech) and copy its connection string.
 2. In Render, choose **New → Blueprint** and pick this repository. `render.yaml` sets up one
    free web service built from the `Dockerfile`.
@@ -194,8 +199,9 @@ to a minute to load.
   work while `DEMO_MODE=true`; set it to `false` for real use.
 - **One server process.** Double-click protection works inside one process, which is how the
   `Dockerfile` runs it. Running several copies would need a database lock instead.
-- **Sleeping pauses reminders.** On Render's free plan the hourly jobs only run while the app
-  is awake; the next run catches up and sends the latest reminder due, once.
+- **Sleeping pauses the hourly jobs.** On Render's free plan, reminders and PayPal payment checks
+  only run while the app is awake. They run a minute after it wakes (any visitor or PayPal webhook
+  wakes it), then hourly, and catch up by sending the latest reminder due, once.
 - **Sandbox only**, and tested with US dollar invoices. PayPal sends at most 2 reminders a day,
   so with big demo clock jumps some reminders wait for a later run.
 
@@ -204,11 +210,12 @@ to a minute to load.
 ```
 backend/app/
   ai/            AI connection (llm.py), contract and message reading, code checks
-  api/           routes: contracts, messages and approval inbox, client portal, demo
+  api/           routes: contracts, messages and approval inbox, client portal and its
+                 messages, evidence pack, demo
   paypal/        PayPal client, invoices, webhook route
   billing.py     creates, sends and syncs invoices; change orders
   milestones.py  allowed status changes, deposit split, revision counting
-  jobs.py        daily jobs: dated invoices, overdue marking, reminders
+  jobs.py        hourly jobs: PayPal payment checks, dated invoices, overdue marking, reminders
   files.py       file names and watermarked previews
 backend/tests/   automated tests (pretend PayPal and AI)
 backend/evals/   real-AI test set: 10 contracts, 15 messages

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Contract, Milestone } from "../../types";
 import {
-  PortalError, analyseClientNote, checkPayment, dismissClientNote, listClientNotes, money, ownFileUrl, portalLink,
+  PortalError, analyseClientNote, checkPayment, dismissClientNote, evidenceUrl, listClientNotes, money, ownFileUrl, portalLink,
   readableSize, sendInvoice, uploadFile, type ClientNote, type PortalFile,
 } from "./portalApi";
 
@@ -66,12 +66,23 @@ export default function BillingPanel({ contract, onChanged }: { contract: Contra
 
   return (
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5">
-      <div>
-        <h2 className="text-lg font-semibold">Billing, files and client page</h2>
-        <p className="text-sm text-slate-600">
-          Your client sees milestones, invoices with a PayPal button, and watermarked previews. Full files unlock
-          by themselves once PayPal says that milestone is paid.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-semibold">Billing, files and client page</h2>
+          <p className="text-sm text-slate-600">
+            Your client sees milestones, invoices with a PayPal button, and watermarked previews. Full files unlock
+            by themselves once PayPal says that milestone is paid.
+          </p>
+        </div>
+        <a
+          href={evidenceUrl(contract.id)}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="One printable page: what was agreed, delivered, approved, invoiced and paid, with the full audit log"
+          className="shrink-0 rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+        >
+          Evidence pack
+        </a>
       </div>
 
       {link && (

@@ -125,6 +125,7 @@ export const listClientNotes = (contractId: number) => call<ClientNote[]>(`/api/
 export const analyseClientNote = (noteId: number) =>
   call<{ suggestions: unknown[] }>(`/api/client-messages/${noteId}/analyse`, post());
 export const dismissClientNote = (noteId: number) => call<ClientNote>(`/api/client-messages/${noteId}/dismiss`, post());
+export const evidenceUrl = (contractId: number) => `/api/contracts/${contractId}/evidence`;
 export const ownFileUrl = (fileId: number) => `/api/files/${fileId}`;
 export const portalLink = (token: string) => `${window.location.origin}/portal/${t(token)}`;
 

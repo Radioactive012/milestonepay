@@ -22,7 +22,7 @@ avoid jargon.
 | Area | Owner |
 |---|---|
 | `backend/app/paypal/`, `backend/app/billing.py`, `backend/app/milestones.py` | A |
-| `backend/app/api/portal.py`, `backend/app/api/client_messages.py`, `backend/app/files.py` | A |
+| `backend/app/api/portal.py`, `backend/app/api/client_messages.py`, `backend/app/api/evidence.py`, `backend/app/files.py` | A |
 | `backend/app/jobs.py`, `backend/app/clock.py`, `backend/app/api/demo.py`, `backend/app/demo_data.py` | A |
 | `backend/scripts/`, `backend/app/frontend.py`, `backend/app/access.py`, `Dockerfile`, `render.yaml` | A |
 | Client portal and billing panel (`frontend/src/pages/portal/`), demo bar (`frontend/src/pages/demo/`) | A |
@@ -119,9 +119,11 @@ Secrets live in `.env` at the project root (copy `.env.example`). Each person ke
   contract: view, approve a milestone, watermarked previews, downloads locked until paid)
 - `backend/app/api/client_messages.py`: messages the client wrote on their page; the freelancer
   analyses them with the AI (one call, same reading as a pasted message) or marks them handled
+- `backend/app/api/evidence.py`: the printable evidence pack for a payment dispute (agreed terms,
+  files with SHA-256 fingerprints, client approvals and messages, invoices, audit log)
 - `backend/app/files.py`: file name cleaning and watermarked previews
 - `backend/app/jobs.py`: daily jobs (checks unpaid invoices with PayPal, dated invoices a week early, overdue marking, PayPal
-  reminders at -3, 0, +3, +7, +14 days). Runs hourly in the background and on demand.
+  reminders at -3, 0, +3, +7, +14 days). Runs a minute after the app starts, then hourly, and on demand.
 - `backend/app/clock.py`: the app's "today" (real date plus the demo clock offset). Use
   `clock.today(session)` instead of `date.today()` anywhere dates matter.
 - `backend/app/api/demo.py`: demo clock, "run jobs now", load the demo project and reset

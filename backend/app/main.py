@@ -12,6 +12,7 @@ from app.access import add_password_check
 from app.api.contracts import router as contracts_router
 from app.api.demo import router as demo_router
 from app.api.client_messages import router as client_messages_router
+from app.api.evidence import router as evidence_router
 from app.api.messages import router as messages_router
 from app.api.portal import router as portal_router
 from app.config import get_settings
@@ -30,9 +31,16 @@ def run_jobs_once() -> dict:
         return run_daily_jobs(session, get_paypal_client(), clock.today(session))
 
 
+# the first run comes soon after start: on Render's free plan the app sleeps when nobody visits,
+# so waiting a full interval first would mean the jobs hardly ever run
+FIRST_RUN_AFTER_SECONDS = 60
+
+
 async def run_jobs_forever(interval_minutes: int) -> None:
+    delay = min(FIRST_RUN_AFTER_SECONDS, interval_minutes * 60)
     while True:
-        await asyncio.sleep(interval_minutes * 60)
+        await asyncio.sleep(delay)
+        delay = interval_minutes * 60
         try:
             summary = await run_in_threadpool(run_jobs_once)
             log.info("Daily jobs: %s", summary)
@@ -59,6 +67,7 @@ app.include_router(contracts_router)
 app.include_router(portal_router)
 app.include_router(messages_router)
 app.include_router(client_messages_router)
+app.include_router(evidence_router)
 app.include_router(demo_router)
 app.include_router(webhook_router)
 

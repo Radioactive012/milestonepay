@@ -205,3 +205,23 @@ def test_a_failed_paypal_check_is_reported_and_the_rest_still_runs(session, fake
     summary = run(session, fake_paypal, deposit_invoice.due_date)
     assert "Couldn't check" in summary["errors"][0]
     assert [r["stage"] for r in summary["reminders"]] == [0]
+
+
+def test_background_jobs_run_soon_after_start_then_on_schedule(monkeypatch):
+    # on a host that sleeps when idle, waiting a whole hour first would mean the jobs hardly ever run
+    import asyncio
+
+    import app.main as main
+
+    delays, runs = [], []
+
+    async def fake_sleep(seconds):
+        delays.append(seconds)
+        if len(delays) == 3:
+            raise asyncio.CancelledError
+
+    monkeypatch.setattr(main.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(main, "run_jobs_once", lambda: runs.append(1) or {})
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(main.run_jobs_forever(60))
+    assert delays == [60, 3600, 3600] and len(runs) == 2
