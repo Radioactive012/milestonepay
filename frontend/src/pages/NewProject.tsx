@@ -4,6 +4,7 @@ import { ApiError, USE_FIXTURES, approveContract, createContract, readContract, 
 import MilestoneGrid from "../components/MilestoneGrid";
 import RiskReport from "../components/RiskReport";
 import { DEMO_CONTRACT_TEXT } from "../fixtures";
+import { sendInvoice } from "./portal/portalApi";
 import type { Contract, MilestoneChanges } from "../types";
 
 type Step = "input" | "analysing" | "review" | "approving" | "approved";
@@ -28,6 +29,7 @@ export default function NewProject({ draftId, onApproved, onOpenProject }: Props
   const [error, setError] = useState<string | null>(null);
   const [gridKey, setGridKey] = useState(0);
   const errorRef = useRef<HTMLParagraphElement>(null);
+  const [sending, setSending] = useState(false);
 
   const fail = (e: unknown) => setError(e instanceof ApiError ? e.message : "Something went wrong. Please try again.");
 
@@ -105,6 +107,21 @@ export default function NewProject({ draftId, onApproved, onOpenProject }: Props
         // keep the original error on screen
       }
       setStep("review");
+    }
+  }
+
+  // PayPal refused the deposit at approval: try sending it again from here
+  async function retryDeposit(milestoneId: number) {
+    if (!contract) return;
+    setError(null);
+    setSending(true);
+    try {
+      await sendInvoice(milestoneId);
+      setContract(await readContract(contract.id));
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : "Something went wrong. Please try again.");
+    } finally {
+      setSending(false);
     }
   }
 
@@ -242,9 +259,17 @@ export default function NewProject({ draftId, onApproved, onOpenProject }: Props
                   </div>
                 </>
               ) : (
-                <p className="text-sm text-emerald-900">
-                  The milestones are approved{deposit === 0 ? " with no deposit." : "."}
-                </p>
+                <>
+                  <p className="text-sm text-emerald-900">
+                    The milestones are approved{depositMilestone ? ", but the deposit invoice hasn't been sent yet." : " with no deposit."}
+                  </p>
+                  {depositMilestone && (
+                    <button onClick={() => retryDeposit(depositMilestone.id)} disabled={sending}
+                      className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+                      {sending ? "Sending…" : "Send invoice now"}
+                    </button>
+                  )}
+                </>
               )}
               {onOpenProject && (
                 <button onClick={onOpenProject} className="rounded-lg border border-emerald-700 bg-white px-4 py-2 text-sm font-medium text-emerald-900">
