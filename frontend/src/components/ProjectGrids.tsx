@@ -40,10 +40,11 @@ export function MilestonesGrid({ contract }: { contract: Contract }) {
       },
       {
         headerName: "Revisions", width: 120,
-        valueGetter: (p) =>
-          p.data && !p.data.is_deposit && p.data.trigger !== "change_order" && p.data.revision_limit !== null
-            ? `${p.data.revisions_used} of ${p.data.revision_limit}`
-            : "",
+        valueGetter: (p) => {
+          if (!p.data || p.data.is_deposit || p.data.trigger === "change_order") return "";
+          if (p.data.revision_limit !== null) return `${p.data.revisions_used} of ${p.data.revision_limit}`;
+          return p.data.revisions_used > 0 ? `${p.data.revisions_used} (no limit)` : "";
+        },
       },
       {
         headerName: "Status", field: "status", width: 150,
