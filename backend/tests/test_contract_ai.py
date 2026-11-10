@@ -226,3 +226,34 @@ def test_retry_tells_the_ai_what_was_wrong():
     assert second["messages"][2] == {"role": "assistant", "content": '{"not": "valid"}'}
     assert "didn't match the required format" in second["messages"][3]["content"]
     assert second["temperature"] == 0
+
+
+def test_empty_reading_is_an_error_not_an_empty_project():
+    empty = json.loads(VALID) | {"milestones": [], "risks": [], "ambiguities": [], "stated_total": 0}
+    reader = ContractReader(llm_with(reply(json.dumps(empty))))
+    with pytest.raises(AIError, match="Couldn't read this contract"):
+        reader.analyse(text="Some contract", file_bytes=None, media_type=None)
+
+
+def test_vague_contract_without_milestones_is_still_shown():
+    vague = json.loads(VALID) | {"milestones": [], "ambiguities": ["What are the installments?"]}
+    reader = ContractReader(llm_with(reply(json.dumps(vague))))
+    analysis = reader.analyse(text="We'll agree the details as we go.", file_bytes=None, media_type=None)
+    assert analysis.milestones == [] and analysis.ambiguities
+
+
+def test_empty_reading_through_the_app_saves_nothing(api):
+    from tests.conftest import CONTRACT_TEXT
+
+    class EmptyAI:
+        def analyse(self, **kwargs):
+            raise AIError("Couldn't read this contract. Try again.")
+
+    from app.ai.contract import get_contract_ai
+    from app.main import app
+
+    app.dependency_overrides[get_contract_ai] = lambda: EmptyAI()
+    response = api.post("/api/contracts", data={"client_email": "b@example.com", "text": CONTRACT_TEXT})
+    assert response.status_code == 502
+    assert "Couldn't read this contract" in response.json()["detail"]
+    assert api.get("/api/contracts").json() == []

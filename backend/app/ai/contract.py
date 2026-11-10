@@ -88,6 +88,11 @@ class ContractReader:
             content.append({"type": "text", "text": "The contract is in the attached image."})
 
         analysis = self._llm.ask_json(system=SYSTEM_PROMPT, content=content, output=ContractAnalysis)
+        # Now and then the model returns a well-formed but empty reading. Saving it would make an
+        # empty project, so say so instead. A vague contract with no clear milestones still has
+        # risks or questions to show, so it is not refused.
+        if not analysis.milestones and not analysis.risks and not analysis.ambiguities:
+            raise AIError("Couldn't read this contract. Try again.")
         if extracted:
             analysis.transcription = text
         return analysis

@@ -12,6 +12,11 @@ a database table or an API route needs both people.
 
 Newest at the top. One line per push: who, what changed, anything the other must do.
 
+- Vinayak: `ContractReader` raises `AIError("Couldn't read this contract. Try again.")` when the
+  reading is completely empty (no milestones, risks or questions), as Avirup asked. Slightly
+  narrower than "no milestones": a vague contract (like eval c03) may have no clear milestones
+  but still has risks and questions worth showing, so it isn't refused. Nothing is saved on error.
+
 - Vinayak: README has a new "How it uses AG Grid" section (your four tables), for the AG Grid
   sponsor prize. Avirup: worth 10 seconds in the video: edit a milestone amount (Total updates)
   and filter the audit log; and a line in the Devpost text.
