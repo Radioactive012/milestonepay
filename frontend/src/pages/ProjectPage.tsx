@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import Progress from "../components/Progress";
 import {
   ApiError, USE_FIXTURES, approveSuggestion, dismissSuggestion, listContracts, listMessages,
   listSuggestions, postMessage, readContract, updateHourlyRate,
@@ -124,7 +125,7 @@ export default function ProjectPage({ contractId: initialId }: { contractId: num
       {notice && <p role="status" className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p>}
 
       {!contract ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <Progress>Loading your project…</Progress>
       ) : (
         <>
           <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
@@ -147,6 +148,7 @@ export default function ProjectPage({ contractId: initialId }: { contractId: num
             <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} maxLength={5000}
               placeholder="Paste the client's message here"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            {busy && <Progress>Working on it. Reading a message can take up to 30 seconds. Please keep this page open.</Progress>}
             <div className="flex flex-wrap gap-3">
               <button onClick={addMessage} disabled={busy || !text.trim()}
                 className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">

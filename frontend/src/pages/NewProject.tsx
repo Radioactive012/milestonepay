@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Progress from "../components/Progress";
 import { ApiError, USE_FIXTURES, approveContract, createContract, refreshInvoice, updateMilestone } from "../api";
 import MilestoneGrid from "../components/MilestoneGrid";
 import RiskReport from "../components/RiskReport";
@@ -99,6 +100,9 @@ export default function NewProject({ onApproved, onOpenProject }: Props) {
           {error}
         </p>
       )}
+
+      {step === "analysing" && <Progress>The AI is reading your contract. This can take up to 30 seconds. Please keep this page open.</Progress>}
+      {step === "approving" && <Progress>Approving the contract and creating the deposit invoice in PayPal…</Progress>}
 
       {(step === "input" || step === "analysing") && (
         <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5">
