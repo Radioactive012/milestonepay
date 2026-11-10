@@ -25,6 +25,10 @@ client cancels, no late fee, and scope that is not defined. For each, write one 
 why it matters and a fairer rewrite the freelancer could propose.
 - Anything vague the freelancer should clarify before signing.
 
+Only flag a risk the contract really has. If the contract already handles something (it has a \
+late fee, a kill fee, capped revisions, ownership passing only after payment, payment terms of \
+30 days or less), don't flag it. A fair contract can have no risks at all.
+
 Suggest a deposit: 0 for a short, clear contract with a low total; 25 for a typical contract; \
 30 when there are medium risks; 50 when there are high risks or most of the payment comes at the end.
 
