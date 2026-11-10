@@ -14,6 +14,19 @@ def normalise(text: str) -> str:
     return re.sub(r"\s+", " ", text.translate(_PUNCTUATION)).strip().lower()
 
 
+# "two rounds of revisions", "3 revision rounds", "two rounds of edits"
+_STATED_REVISIONS = re.compile(
+    r"\b(one|two|three|four|five|\d+)\s+(rounds?\s+of\s+)?(revisions?|edits?|changes)\b"
+    r"|\b(one|two|three|four|five|\d+)\s+(revision|edit)\s+rounds?\b"
+)
+
+
+def revisions_are_capped(source: str) -> bool:
+    """True when the contract states a number of revision rounds and never says unlimited."""
+    text = normalise(source)
+    return bool(_STATED_REVISIONS.search(text)) and "unlimited" not in text
+
+
 def quote_in_source(quote: str, source: str) -> bool:
     cleaned = normalise(quote).strip(" .,;:\"'")
     return bool(cleaned) and cleaned in normalise(source)
@@ -74,6 +87,9 @@ def check_analysis(analysis: ContractAnalysis, source_text: str) -> CheckedContr
         warnings.append(
             f"{dropped} flagged clause(s) were removed because the quote wasn't found in the contract."
         )
+    if revisions_are_capped(source_text) and any(r.category == "unlimited_revisions" for r in risks):
+        risks = [r for r in risks if r.category != "unlimited_revisions"]
+        warnings.append("An 'unlimited revisions' flag was removed: the contract states a number of revision rounds.")
 
     milestones: list[CheckedMilestone] = []
     for draft in analysis.milestones:

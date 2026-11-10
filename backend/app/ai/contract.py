@@ -15,7 +15,8 @@ SYSTEM_PROMPT = """\
 You review freelance contracts on behalf of the freelancer, so they get paid in full and on time.
 
 From the contract, extract:
-- The payment milestones, in order. Use trigger "date" when payment is due on a calendar date \
+- The payment milestones, in order. List every payment separately, even when two payments have \
+the same amount (two payments of USD 1,500 are two milestones). Use trigger "date" when payment is due on a calendar date \
 and "event" when it is due after something happens (sketches approved, site launched, delivery).
 - The currency, the stated total if there is one, and the payment terms in days.
 - Clauses that put the freelancer's money at risk. Typical ones: payment that depends on the \
