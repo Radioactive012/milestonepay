@@ -60,7 +60,9 @@ Work the contract does include, such as listed deliverables and variations, is N
 Before reporting anything, check the scope: a size, format or version that the contract lists \
 (for example "logo variations in three sizes") is included, so it is not out of scope. \
 Estimate the hours honestly; you never state prices.
-- revision_requests: the client asks for changes to a delivered or proposed milestone.
+- revision_requests: the client asks for changes to a delivered or proposed milestone. \
+A request to change existing work is ONLY a revision request, never out_of_scope, even when \
+the revision rounds are used up; the code counts the rounds.
 
 Rules:
 - Every quote must be copied word for word from the message or the contract. Quotes that are not \

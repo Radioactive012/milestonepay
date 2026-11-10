@@ -2,7 +2,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 import pytest
 
-from app.ai.guardrails import check_analysis, quote_in_source
+from app.ai.guardrails import check_analysis, quote_in_source, revisions_are_capped
 from app.milestones import apply_deposit
 from tests.conftest import CONTRACT_TEXT, sample_analysis
 
@@ -59,3 +59,23 @@ def test_deposit_split_keeps_the_total(pct):
 def test_deposit_above_half_is_refused():
     with pytest.raises(ValueError):
         apply_deposit([Decimal("100")], 60)
+
+
+def test_unlimited_revisions_flag_is_dropped_when_rounds_are_stated():
+    source = "Fee USD 1,000 on delivery. Each stage includes two revision rounds."
+    flag = {
+        "clause_quote": "Each stage includes two revision rounds.",
+        "category": "unlimited_revisions",
+        "severity": "high",
+        "why_it_matters": "x",
+        "suggested_rewrite": "y",
+    }
+    checked = check_analysis(sample_analysis(risks=[flag]), source)
+    assert checked.risks == []
+    assert any("unlimited revisions" in w for w in checked.warnings)
+
+
+def test_unlimited_revisions_flag_stays_when_the_contract_says_unlimited():
+    checked = check_analysis(sample_analysis(), CONTRACT_TEXT)
+    assert revisions_are_capped(CONTRACT_TEXT) is False
+    assert not any("unlimited revisions" in w for w in checked.warnings)

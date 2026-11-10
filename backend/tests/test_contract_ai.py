@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from pypdf import PdfWriter
 
 from app.ai.contract import ContractReader, pdf_text
-from app.ai.llm import OPENROUTER_URL, AIError, OpenRouterLLM, strict_schema
+from app.ai.llm import OPENROUTER_URL, TEMPERATURE, AIError, OpenRouterLLM, strict_schema
 from app.ai.schemas import ContractAnalysis
 from app.config import Settings
 from tests.conftest import sample_analysis
@@ -100,7 +100,7 @@ def test_request_uses_the_model_and_strict_json(monkeypatch):
     assert body["response_format"]["json_schema"]["strict"] is True
     assert body["provider"] == {"require_parameters": True}
     assert body["max_tokens"] <= 8000
-    assert body["temperature"] == 0
+    assert body["temperature"] == TEMPERATURE
 
 
 def test_bad_shape_is_retried_once_then_fails():
@@ -118,13 +118,23 @@ def test_bad_shape_is_retried_once_then_fails():
         (httpx.Response(429, json={}), "busy"),
         (httpx.Response(500, json={}), "failed (500)"),
         (httpx.Response(200, json={"error": {"message": "upstream broke"}}), "upstream broke"),
-        (reply(VALID, finish_reason="length"), "couldn't finish"),
     ],
 )
 def test_errors_become_clear_messages(response, message):
     with pytest.raises(AIError) as error:
         llm_with(response).ask_json(system="s", content="c", output=ContractAnalysis)
     assert message in str(error.value)
+
+
+def test_unfinished_answer_is_retried_once_then_fails():
+    assert llm_with(reply(VALID, finish_reason="length"), reply(VALID)).ask_json(
+        system="s", content="c", output=ContractAnalysis
+    )
+    with pytest.raises(AIError) as error:
+        llm_with(reply(VALID, finish_reason="length"), reply(VALID, finish_reason="length")).ask_json(
+            system="s", content="c", output=ContractAnalysis
+        )
+    assert "couldn't finish" in str(error.value)
 
 
 def test_missing_key_fails_without_calling_the_ai():
@@ -225,7 +235,7 @@ def test_retry_tells_the_ai_what_was_wrong():
     assert len(first["messages"]) == 2
     assert second["messages"][2] == {"role": "assistant", "content": '{"not": "valid"}'}
     assert "didn't match the required format" in second["messages"][3]["content"]
-    assert second["temperature"] == 0
+    assert second["temperature"] == TEMPERATURE
 
 
 def test_empty_reading_is_an_error_not_an_empty_project():
