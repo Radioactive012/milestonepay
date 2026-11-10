@@ -9,8 +9,8 @@ through PayPal, and the freelancer approves every step that costs or collects mo
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). PayPal runs in
 **sandbox mode only**, so no real money ever moves.
 
-- **Hosted demo:** _add the Render link here after deploying_
-- **Demo video:** _add the Drive Link here_
+- **Hosted demo:** https://milestonepay.onrender.com (login below, under Try it)
+- **Demo video:** _add the public YouTube link here_ (the hackathon rules require YouTube)
 
 ## The problem
 
@@ -96,12 +96,13 @@ Four tables in the app are AG Grid (Community edition), each doing real work:
   file unlocks on payment and locks again if the payment is refunded.
 - **An audit log** records every action and who did it: the user, the client, the AI, PayPal
   or the system.
-- **A daily cap on AI calls** (`AI_DAILY_LIMIT`, 150 by default) protects the AI budget.
+- **A daily cap on AI calls** (`AI_DAILY_LIMIT`, 150 by default, 40 on the hosted demo) protects the
+  AI budget. Loading the demo project uses no AI at all.
 
 ## Try it (for judges)
 
 The freelancer side of the hosted demo asks for a password (any user name):
-_add the password here_. Type it into the browser's login box; don't put it inside the link
+`acts-image-rhyme-relax`. Type it into the browser's login box; don't put it inside the link
 (`https://name:password@...`), because browsers then block the page's requests. The client page
 opened from **Open as client** needs no password.
 
@@ -121,7 +122,8 @@ On the hosted demo, the yellow **Demo** bar at the top drives the whole story:
 6. Click **+7 days** a few times, then **Run daily jobs**. Unpaid invoices become overdue and
    PayPal reminders go out.
 
-**Sandbox buyer account** (fake money, PayPal sandbox only): _add the email and password here_
+**Sandbox buyer account** (fake money, PayPal sandbox only): email `sb-gkwl253832599@personal.example.com`, password
+`gZ[F9^aw`. Please don't change its password, so other judges can use it too.
 
 **Reset demo** removes all projects so the next person starts fresh.
 

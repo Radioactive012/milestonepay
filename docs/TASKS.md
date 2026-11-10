@@ -12,6 +12,12 @@ a database table or an API route needs both people.
 
 Newest at the top. One line per push: who, what changed, anything the other must do.
 
+- Vinayak: README now has the hosted link and the judge logins (app password, sandbox buyer),
+  as the rules require for a password-protected demo. Hosted AI cap lowered to 40/day in
+  `render.yaml`. **Avirup: the rules say the video must be public on YouTube** ("must be uploaded
+  to and made publicly visible on YouTube"), so the README line is back to a YouTube link; please
+  put the YouTube link there and on the Devpost form. No third-party logos or copyrighted music.
+
 - Vinayak: the deposit-failure message now says where the retry is: "open the project (Messages and
   approvals) and click Send invoice now on the deposit, in the Billing, files and client page
   section". Avirup: if you want, a Send invoice now button in NewProject's approved state would be

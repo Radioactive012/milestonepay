@@ -21,8 +21,10 @@ services:
         sync: false
       - key: AI_MODEL
         value: deepseek/deepseek-v4.1-flash-1017
+      # The judge login is public in the README, so the hosted demo gets a small daily AI cap
+      # (40 calls a day is about $0.04 at most), so visitors can't use up the team's credit.
       - key: AI_DAILY_LIMIT
-        value: "150"
+        value: "40"
       # Neon Postgres connection string. Without it the data is lost on every restart.
       - key: DATABASE_URL
         sync: false
