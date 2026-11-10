@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Progress from "../components/Progress";
 import { ApiError, USE_FIXTURES, approveContract, createContract, readContract, refreshInvoice, updateMilestone } from "../api";
 import MilestoneGrid from "../components/MilestoneGrid";
@@ -27,8 +27,14 @@ export default function NewProject({ draftId, onApproved, onOpenProject }: Props
   const [deposit, setDeposit] = useState(25);
   const [error, setError] = useState<string | null>(null);
   const [gridKey, setGridKey] = useState(0);
+  const errorRef = useRef<HTMLParagraphElement>(null);
 
   const fail = (e: unknown) => setError(e instanceof ApiError ? e.message : "Something went wrong. Please try again.");
+
+  // errors can appear far from the button that caused them, so bring them into view
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [error]);
 
   useEffect(() => {
     if (!draftId) return;
@@ -86,6 +92,18 @@ export default function NewProject({ draftId, onApproved, onOpenProject }: Props
       setStep("approved");
     } catch (e) {
       fail(e);
+      // PayPal can refuse the deposit after the contract was already approved: show what really happened
+      try {
+        const latest = await readContract(contract.id);
+        if (latest.status === "active") {
+          setContract(latest);
+          onApproved?.(latest.id);
+          setStep("approved");
+          return;
+        }
+      } catch {
+        // keep the original error on screen
+      }
       setStep("review");
     }
   }
@@ -113,7 +131,7 @@ export default function NewProject({ draftId, onApproved, onOpenProject }: Props
       </header>
 
       {error && (
-        <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+        <p ref={errorRef} role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900">
           {error}
         </p>
       )}

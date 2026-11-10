@@ -8,13 +8,16 @@ import ProjectPage from "./pages/ProjectPage";
 type View = "dashboard" | "new" | "project";
 
 export default function App() {
-  const [draftId] = useState(takeDraftToOpen);
+  const [draftId, setDraftId] = useState<number | null>(takeDraftToOpen);
   const [view, setView] = useState<View>(draftId ? "new" : "dashboard");
   const [contractId, setContractId] = useState<number | null>(null);
 
   const tab = (name: View, label: string) => (
     <button
-      onClick={() => setView(name)}
+      onClick={() => {
+        if (name === "new") setDraftId(null); // the tab always opens a blank form
+        setView(name);
+      }}
       className={`rounded-lg px-3 py-1.5 text-sm font-medium ${view === name ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"}`}
     >
       {label}
@@ -34,7 +37,14 @@ export default function App() {
       {!USE_FIXTURES && <DemoBar />}
       {view === "dashboard" && (
         <Dashboard
-          onNewProject={() => setView("new")}
+          onNewProject={() => {
+            setDraftId(null);
+            setView("new");
+          }}
+          onOpenDraft={(id) => {
+            setDraftId(id);
+            setView("new");
+          }}
           onOpenInbox={() => setView("project")}
           onOpenProject={(id) => {
             setContractId(id);
@@ -42,7 +52,7 @@ export default function App() {
           }}
         />
       )}
-      {view === "new" && <NewProject draftId={draftId} onApproved={(id) => setContractId(id)} onOpenProject={() => setView("project")} />}
+      {view === "new" && <NewProject key={draftId ?? "blank"} draftId={draftId} onApproved={(id) => setContractId(id)} onOpenProject={() => setView("project")} />}
       {view === "project" && <ProjectPage key={contractId ?? "none"} contractId={contractId} />}
     </>
   );

@@ -20,7 +20,7 @@ from app.billing import approve_change_order, invoice_milestone
 from app.db import get_session
 from app.milestones import record_revision
 from app.models import ChangeOrder, Contract, Message, Milestone, Suggestion
-from app.paypal.client import PayPalClient, PayPalError, get_paypal_client
+from app.paypal.client import PayPalClient, PayPalError, get_paypal_client, paypal_reason
 
 router = APIRouter(prefix="/api")
 
@@ -296,7 +296,7 @@ def approve_suggestion(
         except PayPalError as error:
             raise HTTPException(
                 status_code=502,
-                detail=f"PayPal didn't accept the invoice ({error.status_code}). Try approving again.",
+                detail=f"PayPal didn't accept the invoice: {paypal_reason(error)} Try approving again.",
             )
     elif s.type == "scope_creep":
         hours = edits.hours if edits and edits.hours is not None else Decimal(payload["estimated_hours"])
@@ -322,7 +322,7 @@ def approve_suggestion(
                 session.commit()
             raise HTTPException(
                 status_code=502,
-                detail=f"The change order is saved, but PayPal didn't accept the invoice ({error.status_code}). Use Send invoice on that milestone to retry.",
+                detail=f"The change order is saved, but PayPal didn't accept the invoice: {paypal_reason(error)} Use Send invoice on that milestone to retry.",
             )
     elif s.type == "extra_revision":
         if milestone is None:

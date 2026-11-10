@@ -1,22 +1,26 @@
 import { useEffect, useState } from "react";
 import { ApiError, USE_FIXTURES, listContracts, listSuggestions, readContract } from "../api";
 import { totalsFor } from "../lib/totals";
-import type { Contract } from "../types";
+import type { Contract, ContractSummary } from "../types";
 
 interface Props {
   onOpenProject: (id: number) => void;
   onNewProject: () => void;
+  onOpenDraft: (id: number) => void;
   onOpenInbox: () => void;
 }
 
-export default function Dashboard({ onOpenProject, onNewProject, onOpenInbox }: Props) {
+export default function Dashboard({ onOpenProject, onNewProject, onOpenDraft, onOpenInbox }: Props) {
   const [contracts, setContracts] = useState<Contract[] | null>(null);
+  const [drafts, setDrafts] = useState<ContractSummary[]>([]);
   const [waiting, setWaiting] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
-      const summaries = (await listContracts()).filter((c) => c.status === "active");
+      const all = await listContracts();
+      setDrafts(all.filter((c) => c.status === "draft"));
+      const summaries = all.filter((c) => c.status === "active");
       setContracts(await Promise.all(summaries.map((c) => readContract(c.id))));
       setWaiting((await listSuggestions(null)).length);
     })().catch((e) => setError(e instanceof ApiError ? e.message : "Something went wrong. Please try again."));
@@ -75,6 +79,22 @@ export default function Dashboard({ onOpenProject, onNewProject, onOpenInbox }: 
           </section>
         );
       })}
+
+      {drafts.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">Drafts waiting for approval</h2>
+          <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
+            {drafts.map((d) => (
+              <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 p-4 text-sm">
+                <span className="font-medium">{d.client_name} <span className="font-normal text-slate-500">(not approved yet)</span></span>
+                <button onClick={() => onOpenDraft(d.id)} className="rounded-lg border border-slate-300 px-3 py-1.5">
+                  Continue
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {contracts !== null && contracts.length > 0 && (
         <>
