@@ -67,6 +67,7 @@ can check with their teammate first. Never delete or rewrite the other person's 
 2. Work in small pieces.
 3. Before pushing: run the tests (they must pass), then `git pull` again, then commit and push.
 4. Add a line to the "Notes for each other" section in `docs/TASKS.md` saying what changed.
+   Write "Person A" or "Person B", not names; the repository is public.
 5. If `git pull` reports a conflict, stop and explain it to the user in plain words
    before changing anything.
 
@@ -112,7 +113,7 @@ Secrets live in `.env` at the project root (copy `.env.example`). Each person ke
 
 ## Where things are
 
-- `docs/TASKS.md`: schedule, task split, what's done, and notes for each other
+- `docs/TASKS.md`: what's built, what's left, and notes for each other
 - `backend/app/main.py`: the FastAPI app
 - `backend/app/api/contracts.py`: contract, milestone and invoice routes
 - `backend/app/api/portal.py`: file upload, and the client portal (private link per

@@ -1,189 +1,44 @@
-# Team tasks and schedule
+# Project status and team notes
 
-Deadline: Fri 13 Nov 2026, 01:30 IST. Submission target: Thu 12 Nov, 20:00 IST.
-Code freeze: Thu 12 Nov, 12:00 IST.
+Built for the PayPal AI Hackathon. Deadline: Fri 13 Nov 2026, 01:30 IST.
 
-**Person A** (Vinayak): PayPal, data, deploy.
-**Person B** (Avirup): AI, UI, story.
-Roles can be swapped. Whoever owns an area decides inside it. Anything that changes
-a database table or an API route needs both people.
+- **Person A**: PayPal, database, money flow, client page, hosting.
+- **Person B**: AI prompts, web screens, test contracts and messages, demo video.
+
+Whoever owns an area decides inside it. Anything that changes a database table or an API
+route needs both people. `CLAUDE.md` has the full list of who owns which files.
 
 ## Notes for each other
 
-Newest at the top. One line per push: who, what changed, anything the other must do.
+Newest at the top. One line per push: who (Person A or B), what changed, anything the other must do.
 
-- Vinayak: final check done (259 tests, build, live site). One small hardening: a webhook with no PayPal signature headers is refused straight away (400) instead of asking PayPal and echoing its error (502). Bryntum trial is fine: Bryntum is a hackathon sponsor and its Devpost page tells teams to use the 45-day npm trial.
-- Vinayak: Avirup's two notes fixed. Evidence pack lists a client message once (a client-page message the AI read is no longer repeated from the inbox). Reopened drafts show the highlighted contract text again: the contract data now includes `source_text`. **Avirup, I touched two of your files for this, one line each:** `frontend/src/types.ts` (`source_text?: string` on Contract) and `frontend/src/pages/NewProject.tsx` (`sourceText={text.trim() || contract.source_text || null}`). The client page never gets `source_text`.
-- Vinayak: the client page now says "Refunded" (not "Paid. Thank you!") for a milestone whose invoice was refunded. **Avirup, one small fix in your file if you have time:** the Dashboard's Received total still counts refunded money. In `frontend/src/lib/totals.ts`, change `if (m.status === "paid") t.received += value;` to `if (m.status === "paid") { if (m.invoice?.status !== "REFUNDED") t.received += value; }`. Only matters after a refund.
-- Vinayak: new **Evidence pack** button in the Billing panel: one printable page (save as PDF) with the agreed milestones, files and their SHA-256 fingerprints, client approvals and messages, invoices and payments, and the audit log. Background jobs now run a minute after the app starts, then hourly (on Render's free plan the app sleeps, so the old wait-an-hour-first meant they hardly ran). README: Deploy to Render button, new features listed. Good for the video: client message box and evidence pack.
-- Vinayak: the client page has a "Message your freelancer" box. It only saves the message (no AI on the public page). The freelancer sees it under Billing with "Analyse with AI" (one call, reuses Avirup's create_message as is, sender "client", so suggestions land in the normal inbox) or "I'll handle it myself". New table ClientNote in models.py (created automatically), new file backend/app/api/client_messages.py. Avirup: nothing to change; your messages.py is untouched.
-- Vinayak: the daily jobs now ask PayPal about every unpaid invoice first, so a slow or lost webhook still gets the payment recorded (and a paid invoice is never chased). Avirup's two notes: the AI cap already counts by the real date (new test proves +7 days can't reset it); the Billing panel's green message now hides after 8 seconds and errors get a Dismiss button. Render stays on the free plan (files live in Neon, so nothing is lost when it sleeps).
-- Vinayak: README now has the hosted link and the judge logins (app password, sandbox buyer),
-  as the rules require for a password-protected demo. Hosted AI cap lowered to 40/day in
-  `render.yaml`. **Avirup: the rules say the video must be public on YouTube** ("must be uploaded
-  to and made publicly visible on YouTube"), so the README line is back to a YouTube link; please
-  put the YouTube link there and on the Devpost form. No third-party logos or copyrighted music.
+## What's built
 
-- Vinayak: the deposit-failure message now says where the retry is: "open the project (Messages and
-  approvals) and click Send invoice now on the deposit, in the Billing, files and client page
-  section". Avirup: if you want, a Send invoice now button in NewProject's approved state would be
-  even easier. The PayPal 403 is the sandbox app's Invoicing feature; Vinayak is switching it on.
+- **Contract reading**: paste text, upload a PDF or a photo. The AI lists milestones, flags risky
+  clauses with a fairer rewrite, and suggests a deposit. Code checks drop any clause that isn't
+  quoted word for word and warn when amounts don't add up.
+- **Approval and deposit**: the freelancer edits the milestones in a grid and approves; the
+  deposit invoice goes out through PayPal.
+- **Client messages**: pasted by the freelancer or written by the client on their own page. The AI
+  proposes milestone invoices, change orders (hours x hourly rate) and revision counts; each waits
+  in an approval inbox.
+- **PayPal (sandbox)**: Invoicing v2 (create, send, remind, read status), signed webhooks for
+  paid, cancelled and refunded, and an hourly check of unpaid invoices in case a webhook is missed.
+- **Client page**: private link per project with milestones, PayPal pay buttons, watermarked
+  previews, and files that unlock when the invoice is paid (and lock again after a refund).
+- **Daily jobs**: dated invoices a week early, overdue marking, reminders at -3, 0, +3, +7 and
+  +14 days. A demo clock lets judges jump ahead in time.
+- **Evidence pack**: one printable page per project for payment disputes.
+- **Payment timeline** (Bryntum Gantt) and tables (AG Grid) on the freelancer side.
+- **Safety**: the AI never calls PayPal or sets a final amount; every action is in the audit log;
+  double clicks can't bill twice; a daily cap limits real AI calls; an optional password guards
+  the freelancer side.
+- **Hosting**: one Docker container on Render, Postgres on Neon.
+- **Tests**: the whole backend is covered by automated tests that use a pretend PayPal and a
+  pretend AI, so they cost nothing to run.
 
-- Vinayak: `ContractReader` raises `AIError("Couldn't read this contract. Try again.")` when the
-  reading is completely empty (no milestones, risks or questions), as Avirup asked. Slightly
-  narrower than "no milestones": a vague contract (like eval c03) may have no clear milestones
-  but still has risks and questions worth showing, so it isn't refused. Nothing is saved on error.
+## Left before submitting
 
-- Vinayak: README has a new "How it uses AG Grid" section (your four tables), for the AG Grid
-  sponsor prize. Avirup: worth 10 seconds in the video: edit a milestone amount (Total updates)
-  and filter the audit log; and a line in the Devpost text.
-
-- Vinayak: `temperature: 0` on every AI call in `ask_json` (Avirup's request, for consistent
-  evals and demo; DeepSeek on OpenRouter supports it). The one retry now tells the AI what was
-  wrong with its first answer, since at temperature 0 a plain repeat gets the same answer.
-
-- Vinayak: tests now ignore `.env` and real keys completely (`MILESTONEPAY_ENV_FILE=""` set in
-  `tests/conftest.py`), so a filled-in `.env` can't change results or spend AI credit.
-
-- Vinayak: PayPal checks against the docs, before real keys: webhook check sends PayPal the
-  event exactly as received; create-invoice accepts every reply shape; PayPal's 2-reminders-a-day
-  limit gets a plain message; stray spaces in `.env` values are ignored. Confirmed on OpenRouter:
-  our DeepSeek model supports strict JSON answers and image input (~$0.001 per contract).
-
-- Vinayak: **full test pass done** (228 tests, also all passing on real Postgres 16). Bugs fixed:
-  - Double clicks made two PayPal invoices / two deposits / two change orders. Now one request
-    at a time per item (`billing.one_at_a_time`). A suggestion becomes at most one change order.
-  - Refunds re-lock the client's files; late PAID events can't undo a refund.
-  - Milestones can't be edited after the contract is approved (`PATCH /api/milestones` → 409).
-  - **The freelancer side had no password**, so a client could download unpaid files through
-    `/api/files/<id>`. New optional `APP_PASSWORD` (`backend/app/access.py`): the browser asks
-    for it everywhere except the client page, PayPal webhook and `/health`. Off when empty.
-  - A fresh clone crashed on start (`DATABASE_URL=` empty in `.env`); empty settings now mean
-    "use the default".
-  - Browsers kept an old copy of the page after a deploy; the page is now always rechecked.
-  - Client page: messages scroll into view; a dated milestone can be approved once.
-  - Shared files touched (small): `api/contracts.py`, `main.py` (one line), `config.py`,
-    `tests/conftest.py` (tests ignore your own `.env`; `TEST_DATABASE_URL` runs them on Postgres).
-  - **Avirup, found in your files (not changed, your call):**
-    1. `NewProject.tsx` `approve()`: if PayPal refuses the deposit, the contract *is* approved
-       but the page goes back to "review" and the message is at the top, out of view. Clicking
-       Approve again says "already approved". Suggest: on error, `readContract` again and, if
-       its status is `active`, show the approved state with the error next to it.
-    2. `ProjectPage.tsx`: errors (for example "add your OpenRouter key" or the AI daily limit)
-       show at the very top while the button is far below, so Analyse looks like it did nothing.
-       `PortalPage.tsx` now uses a ref + `scrollIntoView` for this; the same works for you.
-    3. Dashboard lists only approved projects, so a draft you leave can't be found again.
-    4. `api/messages.py`: PayPal errors show only the code, e.g. "(401)"; `paypal_reason(error)`
-       from `app.paypal.client` gives the reason. Small: the milestone grid refuses bad amounts
-       silently; contract upload of a wrong file type answers 502 instead of 422.
-    5. `npm audit` flags esbuild/vite (dev server only; nothing that ships). Fix needs a Vite
-       major upgrade, so probably leave it until after the deadline.
-
-- Vinayak: **Person A's part is complete** (code side). New:
-  - Client page at `/portal/<link>` (`frontend/src/pages/portal/PortalPage.tsx`) and a
-    "Billing, files and client page" panel on the project page (client link with copy,
-    file upload, Send invoice now, Check payment).
-  - Yellow demo bar (`frontend/src/pages/demo/DemoBar.tsx`): load demo project (saved AI
-    reading, no credit), +7 days, back to today, run daily jobs, reset demo.
-  - One website: the backend serves `frontend/dist` (`backend/app/frontend.py`).
-  - Daily cap on real AI calls, `AI_DAILY_LIMIT` (default 150), enforced inside `app.ai.llm`.
-  - `Dockerfile`, `.dockerignore`, `render.yaml` for Render. New README with a judge walkthrough.
-  - PayPal errors now say why (for example "keys are missing"), not just the code.
-  - **Avirup, heads-up on your files** (small additions, please check):
-    `frontend/src/main.tsx` (shows the client page for `/portal/...` links),
-    `frontend/src/App.tsx` (demo bar under the nav; opens a just-loaded demo draft),
-    `frontend/src/pages/ProjectPage.tsx` (the billing panel under the milestones grid),
-    `frontend/src/pages/NewProject.tsx` (new optional `draftId` prop to open a saved draft).
-  - After pulling: delete `backend/milestonepay.db` (new columns), `pip install -r requirements.txt`.
-
-- Avirup: added `backend/app/api/messages.py` (message analysis and the approval inbox):
-  `POST /api/messages`, `GET /api/messages`, `GET /api/suggestions`, and `approve` and `dismiss`
-  for a suggestion. They call your `invoice_milestone`, `approve_change_order` and
-  `record_revision`. Heads-up on a shared file: one line added to `backend/app/main.py` to
-  include the router. `ai/messages.py` now uses your `round_to_quarter_hour`. Also in
-  pull request #1: the new project page (`frontend/`) and the evals (`backend/evals/`).
-  Merged main into b-frontend: `ai/messages.py` now uses `get_llm().ask_json` and `AIError`.
-
-- Vinayak: **the AI now runs on OpenRouter with DeepSeek V4.1 Flash 1017**, not Anthropic.
-  The `anthropic` package is gone. Every AI call goes through `app.ai.llm`:
-  `get_llm().ask_json(system=..., content=..., output=YourPydanticModel)` returns a checked
-  answer or raises `AIError` with a readable message. Settings are `OPENROUTER_API_KEY` and
-  `AI_MODEL` (the old `ANTHROPIC_*` settings no longer exist). PDFs are read locally for free.
-  Avirup: please switch `messages.py` to `ask_json` and catch `AIError` before merging PR #1,
-  then `pip install -r requirements.txt`. Read "Saving AI credit" in `CLAUDE.md`: we have about $2.
-
-- Vinayak: reminders and demo clock are on main. Daily jobs (`backend/app/jobs.py`) send
-  dated milestones' invoices 7 days early, mark late invoices overdue, and send PayPal
-  reminders at -3, 0, +3, +7 and +14 days (one per stage; a jump sends only the latest).
-  They run hourly and on demand. Demo routes: `GET/POST /api/demo/clock`
-  (`{"offset_days": 7}`), `POST /api/demo/run-jobs`. Invoices now show `reminders`.
-  Avirup: for dates, use `clock.today(session)`, not `date.today()`. Delete
-  `backend/milestonepay.db` after pulling (new tables). Reminder text is a template for
-  now; an AI-written version could go in `reminder_text()` later if there's time.
-
-- Vinayak: client portal backend is on main (`backend/app/api/portal.py`). Routes:
-  `POST /api/milestones/{id}/files` (upload), `GET /api/files/{id}` (freelancer download),
-  `GET /api/portal/{token}` (client view), `POST /api/portal/{token}/milestones/{id}/approve`
-  (client approves; event milestones get invoiced), `GET /api/portal/{token}/files/{id}/preview`
-  (watermarked image), `GET /api/portal/{token}/files/{id}` (402 until paid).
-  `GET /api/contracts/{id}` now lists `files` per milestone. Delete `backend/milestonepay.db`
-  after pulling (new `deliverable` table) and run `pip install -r requirements.txt` (Pillow).
-  Also fixed: missing Anthropic or PayPal keys now give a clear message instead of a crash.
-  Avirup: `ClaudeMessageAI` likely has the same missing-key crash; see `ClaudeContractAI.__init__`.
-
-- Vinayak: added `message`, `suggestion`, `change_order` tables, `contract.hourly_rate`
-  (default 40, `PATCH /api/contracts/{id}`), `milestone.revisions_used`,
-  `approve_change_order()` and `record_revision()`. Avirup: your routes can call these
-  (see "Money functions to call" in CLAUDE.md). Delete `backend/milestonepay.db` after
-  pulling, because the tables changed. Also: `hours.quantize(Decimal("0.25"))` rounds to
-  2 decimals, not to quarter hours; use `app.billing.round_to_quarter_hour`.
-- Vinayak: added GitHub comment rules to `CLAUDE.md`.
-
-- Vinayak: added `CLAUDE.md` (team rules both our Claudes read automatically). Please `git pull`.
-- Vinayak: backend foundation is on `main`: PayPal invoices, contract reading with
-  Claude, deposit, paid webhook. Needs real keys to test.
-
-## Compressed schedule (4 days)
-
-| Day | Person A | Person B |
-|---|---|---|
-| Mon 9 Nov | PayPal sandbox US business and personal accounts, app credentials, `.env`. Run `scripts/paypal_spike.py` end to end. | Anthropic key with spend limit. Write the 10 contracts and 15 messages with expected answers. First contract extraction and risk prompts. |
-| Tue 10 Nov | Database tables, contract and milestone routes, webhook updates milestone status, deploy to Render + Neon, register webhook. | New project page (paste contract, risks, milestone grid, approve). Message analysis prompt. |
-| Wed 11 Nov | Client portal, deliverable upload, files unlock on paid webhook, PayPal reminders, demo clock. Core freeze at night. | Approval inbox, change orders, AG Grid tables, audit timeline, eval run. |
-| Thu 12 Nov | Code freeze 12:00. README, hosted demo check, repo and license check. | Video (under 3 minutes), Devpost text. Submit by 20:00. |
-
-## Cut from the original plan
-
-Dispute evidence pack, Bryntum timeline, APIMatic SDK and the agentic commerce
-extra only come back if the core works by Wednesday night. AG Grid and Render stay.
-
-## Done so far
-
-- Public repo with MIT license
-- FastAPI backend skeleton, PayPal client (token cache, invoices, reminders,
-  webhook signature check), webhook route, 14 passing tests
-- `backend/scripts/paypal_spike.py` to prove the PayPal flow with real sandbox keys
-- Database tables (contracts, milestones, invoices, webhook events, audit log),
-  SQLite locally and Postgres when `DATABASE_URL` is set
-- Milestone status rules: only allowed changes, each one written to the audit log
-- AI contract reading with Claude (text, PDF or photo): milestones, risky clauses,
-  deposit suggestion. Code checks drop clauses not quoted word for word, warn when
-  amounts don't add up, and reject zero amounts
-- Routes: create contract, edit draft milestone, approve with deposit (deposit
-  invoice goes out through PayPal), send milestone invoice, refresh from PayPal
-- PayPal "paid" webhook marks the invoice and milestone paid, stored so repeats are ignored
-- Message, suggestion and change order tables; hourly rate; change orders billed as
-  their own milestone; revision counting
-- Client portal backend: private link per contract, client approval, file upload,
-  watermarked previews, downloads locked until the PayPal invoice is paid
-- Clear errors when AI or PayPal keys are missing
-- AI runs on OpenRouter (DeepSeek V4.1 Flash 1017) through one shared connection, `app.ai.llm`
-- Daily jobs: dated invoices, overdue marking, PayPal reminders; demo clock and run-jobs routes
-- 131 passing tests, all with a pretend PayPal and a pretend AI
-- Client page, billing panel, demo bar, one-website serving, AI daily cap, Render files, README
-
-## Not done yet
-
-- Not yet run against real PayPal sandbox or the real AI (needs keys in `.env`)
-- Deploy to Render + Neon (needs Vinayak's accounts), first real PayPal and AI run (needs keys),
-  demo video and Devpost text
+- Public YouTube video (under 3 minutes) and its link in `README.md`
+- Devpost text and testing instructions
+- Reset the hosted demo so judges start clean
