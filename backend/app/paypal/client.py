@@ -88,6 +88,9 @@ class PayPalClient:
             "transmission_time": headers.get("paypal-transmission-time", ""),
             "webhook_id": self._settings.paypal_webhook_id,
         }
+        # no signature at all: not from PayPal, so refuse without asking PayPal
+        if not all(fields.values()):
+            return False
         body = json.dumps(fields)[:-1].encode() + b', "webhook_event": ' + raw_body.strip() + b"}"
         result = self.request(
             "POST",

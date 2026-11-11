@@ -144,6 +144,28 @@ def test_verify_webhook_sends_headers_and_webhook_id(status, expected):
     assert sent["webhook_event"] == {"id": "WH-EVT-1"}
 
 
+SIGNATURE_HEADERS = {
+    "paypal-auth-algo": "SHA256withRSA",
+    "paypal-cert-url": "https://api.sandbox.paypal.com/cert",
+    "paypal-transmission-id": "t-1",
+    "paypal-transmission-sig": "sig",
+    "paypal-transmission-time": "2026-11-10T10:00:00Z",
+}
+
+
+def test_event_without_a_signature_is_refused_without_asking_paypal():
+    asked = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        asked.append(request.url.path)
+        return httpx.Response(200, json={"access_token": "tok", "expires_in": 3600, "verification_status": "SUCCESS"})
+
+    client = make_client(handler)
+    assert client.verify_webhook({}, b'{"id": "WH-FAKE"}') is False
+    assert client.verify_webhook({**SIGNATURE_HEADERS, "paypal-transmission-sig": ""}, b'{"id": "WH-FAKE"}') is False
+    assert asked == []
+
+
 def test_verify_webhook_sends_the_event_exactly_as_received():
     raw = b'{"id":"WH-2",  "summary":"Caf\u00e9 paid", "resource":{"amount":{"value":"10.00"},"n":1.50}}'
     sent = {}
@@ -154,7 +176,7 @@ def test_verify_webhook_sends_the_event_exactly_as_received():
         sent["body"] = request.content
         return httpx.Response(200, json={"verification_status": "SUCCESS"})
 
-    assert make_client(handler).verify_webhook({}, raw) is True
+    assert make_client(handler).verify_webhook(SIGNATURE_HEADERS, raw) is True
     assert raw in sent["body"]  # spacing, escapes and 1.50 untouched
     assert json.loads(sent["body"])["webhook_event"]["summary"] == "Café paid"
 
