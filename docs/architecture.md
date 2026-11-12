@@ -2,6 +2,10 @@
 
 How MilestonePay fits together. The AI only proposes; code checks it, people approve, and only the billing code talks to PayPal.
 
+![MilestonePay architecture](architecture.png)
+
+The same picture as a diagram GitHub draws from text:
+
 ```mermaid
 flowchart LR
   F["Freelancer<br/>(React app)"]

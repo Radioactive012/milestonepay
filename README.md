@@ -61,7 +61,11 @@ The AI is **DeepSeek V4.1 Flash 1017** (`deepseek/deepseek-v4.1-flash-1017`) thr
 
 Every answer must match a strict JSON schema, and code checks it before anything is saved.
 
-See the [architecture diagram](docs/architecture.md) for how the pieces fit together.
+## How it fits together
+
+![MilestonePay architecture: the freelancer and client talk to the FastAPI backend; the AI reader only proposes, code checks its answer, and only the billing code talks to the PayPal sandbox](docs/architecture.png)
+
+More detail in [docs/architecture.md](docs/architecture.md).
 
 ## How it uses AG Grid
 

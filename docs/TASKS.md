@@ -12,6 +12,8 @@ route needs both people. `CLAUDE.md` has the full list of who owns which files.
 
 Newest at the top. One line per push: who (Person A or B), what changed, anything the other must do.
 
+- Person A: architecture picture added (`docs/architecture.png`), shown in the README under "How it fits together". Free to use in the video or on Devpost; it has no company logos.
+
 ## What's built
 
 - **Contract reading**: paste text, upload a PDF or a photo. The AI lists milestones, flags risky
